@@ -12,10 +12,10 @@ local DISCORD_LINK = "https://discord.gg/HT4TwYGh5g"
 local function fixText(str)
     -- Reemplazos de símbolos mal codificados
     local fixes = 
-        ["â—"]  = "🔴"
-        ["âœ–"]  = "✖" 
-        ["ðŸ¦‘"] = "🦑"
-        ["âˆ’"]  = "-"
+        ["â—"]  = "🔴",
+        ["âœ–"]  = "✖",
+        ["ðŸ¦‘"] = "🦑",
+        ["âˆ’"]  = "-",
         ["â€”"]  = "-"
 
     for bad, good in pairs(fixes) do
