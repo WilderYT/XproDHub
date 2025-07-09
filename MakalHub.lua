@@ -28,7 +28,7 @@ local logo = Instance.new("TextLabel", bg)
 logo.Position = UDim2.new(0.5, -40, 0, 18)
 logo.Size = UDim2.new(0, 80, 0, 80)
 logo.BackgroundTransparency = 1
-logo.Text = "🔴"
+logo.Text = "●"
 logo.TextColor3 = Color3.fromRGB(255,0,130)
 logo.TextStrokeTransparency = 0.3
 logo.Font = Enum.Font.GothamBlack
@@ -335,7 +335,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     mainGradient.Rotation = 45
 
     local title = Instance.new("TextLabel", mainFrame)
-    title.Text = "🦑Makal Hub🦑"
+    title.Text = "★ Makal Hub ★"
     title.Size = UDim2.new(1, -70, 0, 35)
     title.Position = UDim2.new(0, 10, 0, 0)
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -351,7 +351,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     titleStroke.Transparency = 0.5
 
     local closeButton = Instance.new("TextButton", mainFrame)
-    closeButton.Text = "✖"
+    closeButton.Text = "x"
     closeButton.Size = UDim2.new(0, 30, 0, 30)
     closeButton.Position = UDim2.new(1, -35, 0, 2.5)
     closeButton.BackgroundColor3 = Color3.fromRGB(255, 90, 90)
@@ -371,7 +371,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     closeGlow.Transparency = 0.4
 
     local minimizeButton = Instance.new("TextButton", mainFrame)
-    minimizeButton.Text = "➖"
+    minimizeButton.Text = "-"
     minimizeButton.Size = UDim2.new(0, 30, 0, 30)
     minimizeButton.Position = UDim2.new(1, -70, 0, 2.5)
     minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 140, 220)
@@ -579,7 +579,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     minimizeButton.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
         if isMinimized then
-            minimizeButton.Text = "➕"
+            minimizeButton.Text = "+"
             espHiddenFrame.Visible = false
             espSeeksFrame.Visible = false
             tpHiddenFrame.Visible = false
@@ -588,7 +588,7 @@ unlockBtn.MouseButton1Click:Connect(function()
             playerList.Visible = false
             TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = minimizedSize}):Play()
         else
-            minimizeButton.Text = "➖"
+            minimizeButton.Text = "-"
             espHiddenFrame.Visible = true
             espSeeksFrame.Visible = true
             tpHiddenFrame.Visible = true
