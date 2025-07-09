@@ -178,7 +178,7 @@ end
 
 discordBtn.MouseButton1Click:Connect(function()
 if setclipboard then setclipboard(DISCORD_LINK) end
-showNotification("Discord link copied! Paste in your browser to join.")
+showNotification("Discord link copied! Paste in your browser.")
 end)
 
 local function isKiller(plr)
@@ -577,12 +577,6 @@ mainContent.Size = UDim2.new(1, -20, 0, 245)
 mainContent.Position = UDim2.new(0, 10, 0, 70)
 mainContent.BackgroundTransparency = 1
 mainContent.Visible = false
-
-local creditsContent = Instance.new("Frame", mainFrame)
-creditsContent.Size = UDim2.new(1, -20, 0, 245)
-creditsContent.Position = UDim2.new(0, 10, 0, 70)
-creditsContent.BackgroundTransparency = 1
-creditsContent.Visible = false
 
 local espHiddenActive, espSeeksActive, tpHiddenActive, namesESPActive = false, false, false, false
 
