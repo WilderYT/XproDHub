@@ -28,7 +28,7 @@ local logo = Instance.new("TextLabel", bg)
 logo.Position = UDim2.new(0.5, -40, 0, 18)
 logo.Size = UDim2.new(0, 80, 0, 80)
 logo.BackgroundTransparency = 1
-logo.Text = "â—"
+logo.Text = "🔴"
 logo.TextColor3 = Color3.fromRGB(255,0,130)
 logo.TextStrokeTransparency = 0.3
 logo.Font = Enum.Font.GothamBlack
@@ -152,7 +152,7 @@ end
 
 discordBtn.MouseButton1Click:Connect(function()
     if setclipboard then setclipboard(DISCORD_LINK) end
-    showNotification("Copied! Paste in your browser or Discord to join.")
+    showNotification("Copied! Paste in your browser or to join.")
 end)
 
 -- ESP UTILS
@@ -335,7 +335,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     mainGradient.Rotation = 45
 
     local title = Instance.new("TextLabel", mainFrame)
-    title.Text = "ðŸ¦‘Makal hub"
+    title.Text = "🦑¦‘Makal hub"
     title.Size = UDim2.new(1, -70, 0, 35)
     title.Position = UDim2.new(0, 10, 0, 0)
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -351,7 +351,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     titleStroke.Transparency = 0.5
 
     local closeButton = Instance.new("TextButton", mainFrame)
-    closeButton.Text = "âœ–"
+    closeButton.Text = "✖"
     closeButton.Size = UDim2.new(0, 30, 0, 30)
     closeButton.Position = UDim2.new(1, -35, 0, 2.5)
     closeButton.BackgroundColor3 = Color3.fromRGB(255, 90, 90)
@@ -371,7 +371,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     closeGlow.Transparency = 0.4
 
     local minimizeButton = Instance.new("TextButton", mainFrame)
-    minimizeButton.Text = "âˆ’"
+    minimizeButton.Text = "-"
     minimizeButton.Size = UDim2.new(0, 30, 0, 30)
     minimizeButton.Position = UDim2.new(1, -70, 0, 2.5)
     minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 140, 220)
