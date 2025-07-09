@@ -38,7 +38,7 @@ local title = Instance.new("TextLabel", bg)
 title.Position = UDim2.new(0, 0, 0, 92)
 title.Size = UDim2.new(1, 0, 0, 34)
 title.BackgroundTransparency = 1
-title.Text = "Makal Hub IK"
+title.Text = "Makal Hub Join"
 title.TextColor3 = Color3.fromRGB(255,0,130)
 title.Font = Enum.Font.GothamBlack
 title.TextSize = 28
@@ -47,7 +47,7 @@ local desc = Instance.new("TextLabel", bg)
 desc.Position = UDim2.new(0, 0, 0, 124)
 desc.Size = UDim2.new(1, 0, 0, 44)
 desc.BackgroundTransparency = 1
-desc.Text = "To use the ESP, join our Discord server\nand come back here to unlock the script!"
+desc.Text = "To use the script, join Discord server\nand come back here to unlock the script!"
 desc.TextColor3 = Color3.fromRGB(210,210,210)
 desc.Font = Enum.Font.Gotham
 desc.TextSize = 18
@@ -67,7 +67,7 @@ local unlockBtn = Instance.new("TextButton", bg)
 unlockBtn.Position = UDim2.new(0.1, 0, 0, 228)
 unlockBtn.Size = UDim2.new(0.8, 0, 0, 36)
 unlockBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-unlockBtn.Text = "I have joined"
+unlockBtn.Text = "already joined"
 unlockBtn.Font = Enum.Font.GothamBold
 unlockBtn.TextSize = 20
 unlockBtn.TextColor3 = Color3.new(1,1,1)
@@ -94,7 +94,7 @@ local function showNotification(message)
     head.Size = UDim2.new(1, -18, 0, 20)
     head.Position = UDim2.new(0,9,0,4)
     head.BackgroundTransparency = 1
-    head.Text = "Makal Hub ESP Says:"
+    head.Text = "Makal Hub says:"
     head.Font = Enum.Font.GothamBlack
     head.TextSize = 16
     head.TextColor3 = Color3.fromRGB(68, 176, 255)
@@ -152,7 +152,7 @@ end
 
 discordBtn.MouseButton1Click:Connect(function()
     if setclipboard then setclipboard(DISCORD_LINK) end
-    showNotification("Copied! Paste in your browser or to join.")
+    showNotification("Copied! Paste in your browser to join.")
 end)
 
 -- ESP UTILS
@@ -431,7 +431,7 @@ unlockBtn.MouseButton1Click:Connect(function()
         end
         local btnSelf = Instance.new("TextButton")
         btnSelf.Size = UDim2.new(1,0,0,22)
-        btnSelf.Text = "[TEST] your character"
+        btnSelf.Text = "Disable TP"
         btnSelf.Font = Enum.Font.Gotham
         btnSelf.TextColor3 = Color3.new(1,1,1)
         btnSelf.BackgroundColor3 = Color3.fromRGB(70,70,100)
