@@ -335,7 +335,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     mainGradient.Rotation = 45
 
     local title = Instance.new("TextLabel", mainFrame)
-    title.Text = "🦑¦‘Makal hub"
+    title.Text = "🦑Makal Hub🦑"
     title.Size = UDim2.new(1, -70, 0, 35)
     title.Position = UDim2.new(0, 10, 0, 0)
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -371,7 +371,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     closeGlow.Transparency = 0.4
 
     local minimizeButton = Instance.new("TextButton", mainFrame)
-    minimizeButton.Text = "-"
+    minimizeButton.Text = "➖"
     minimizeButton.Size = UDim2.new(0, 30, 0, 30)
     minimizeButton.Position = UDim2.new(1, -70, 0, 2.5)
     minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 140, 220)
@@ -403,7 +403,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     local playerListLabel = Instance.new("TextLabel", mainFrame)
     playerListLabel.Size = UDim2.new(1, -20, 0, 20)
     playerListLabel.Position = UDim2.new(0, 10, 0, 197)
-    playerListLabel.Text = "Selecciona jugador a tepear:"
+    playerListLabel.Text = "select a player for tp:"
     playerListLabel.BackgroundTransparency = 1
     playerListLabel.TextColor3 = Color3.new(1,1,1)
     playerListLabel.Font = Enum.Font.Gotham
@@ -431,7 +431,7 @@ unlockBtn.MouseButton1Click:Connect(function()
         end
         local btnSelf = Instance.new("TextButton")
         btnSelf.Size = UDim2.new(1,0,0,22)
-        btnSelf.Text = "[TEST] Tp a ti mismo"
+        btnSelf.Text = "[TEST] your character"
         btnSelf.Font = Enum.Font.Gotham
         btnSelf.TextColor3 = Color3.new(1,1,1)
         btnSelf.BackgroundColor3 = Color3.fromRGB(70,70,100)
@@ -579,7 +579,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     minimizeButton.MouseButton1Click:Connect(function()
         isMinimized = not isMinimized
         if isMinimized then
-            minimizeButton.Text = "+"
+            minimizeButton.Text = "➕"
             espHiddenFrame.Visible = false
             espSeeksFrame.Visible = false
             tpHiddenFrame.Visible = false
@@ -588,7 +588,7 @@ unlockBtn.MouseButton1Click:Connect(function()
             playerList.Visible = false
             TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Size = minimizedSize}):Play()
         else
-            minimizeButton.Text = "âˆ’"
+            minimizeButton.Text = "➖"
             espHiddenFrame.Visible = true
             espSeeksFrame.Visible = true
             tpHiddenFrame.Visible = true
