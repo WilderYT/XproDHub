@@ -8,6 +8,24 @@ local RunService = game:GetService("RunService")
 
 local DISCORD_LINK = "https://discord.gg/HT4TwYGh5g"
 
+-- ========== Fix caracteres unicode ==========
+local function fixText(str)
+    -- Reemplazos de símbolos mal codificados
+    local fixes = {
+        ["â—"]  = "🔴",  -- Bola roja
+        ["âœ–"]  = "✖",  -- X
+        ["ðŸ¦‘"] = "🦑", -- Pulpo
+        ["âˆ’"]  = "-",   -- Guion normal (menos)
+        ["â€”"]  = "-",   -- Guion largo (em dash → guión simple)
+    }
+
+    for bad, good in pairs(fixes) do
+        str = str:gsub(bad, good)
+    end
+
+    return str
+end
+
 -- ========== DISCORD ACCESS SCREEN ==========
 local gui = Instance.new("ScreenGui")
 gui.Name = "SG_ESP_Discord_GATE"
