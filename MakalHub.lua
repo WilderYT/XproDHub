@@ -28,7 +28,7 @@ local logo = Instance.new("TextLabel", bg)
 logo.Position = UDim2.new(0.5, -40, 0, 18)
 logo.Size = UDim2.new(0, 80, 0, 80)
 logo.BackgroundTransparency = 1
-logo.Text = "🔴"
+logo.Text = "â—"
 logo.TextColor3 = Color3.fromRGB(255,0,130)
 logo.TextStrokeTransparency = 0.3
 logo.Font = Enum.Font.GothamBlack
@@ -208,7 +208,7 @@ local function makeESP(plr, color)
     end
 end
 
--- === FUNCIÓN DE TELEPORT/LISTA DE JUGADORES ===
+-- === FUNCIÃ“N DE TELEPORT/LISTA DE JUGADORES ===
 local selectedPlayer = nil
 local tpEnabled = false
 local hitboxSize = Vector3.new(7,7,7)
@@ -335,7 +335,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     mainGradient.Rotation = 45
 
     local title = Instance.new("TextLabel", mainFrame)
-    title.Text = "🦑Makal hub"
+    title.Text = "ðŸ¦‘Makal hub"
     title.Size = UDim2.new(1, -70, 0, 35)
     title.Position = UDim2.new(0, 10, 0, 0)
     title.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -351,7 +351,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     titleStroke.Transparency = 0.5
 
     local closeButton = Instance.new("TextButton", mainFrame)
-    closeButton.Text = "✖"
+    closeButton.Text = "âœ–"
     closeButton.Size = UDim2.new(0, 30, 0, 30)
     closeButton.Position = UDim2.new(1, -35, 0, 2.5)
     closeButton.BackgroundColor3 = Color3.fromRGB(255, 90, 90)
@@ -371,7 +371,7 @@ unlockBtn.MouseButton1Click:Connect(function()
     closeGlow.Transparency = 0.4
 
     local minimizeButton = Instance.new("TextButton", mainFrame)
-    minimizeButton.Text = "-"
+    minimizeButton.Text = "âˆ’"
     minimizeButton.Size = UDim2.new(0, 30, 0, 30)
     minimizeButton.Position = UDim2.new(1, -70, 0, 2.5)
     minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 140, 220)
@@ -394,4 +394,142 @@ unlockBtn.MouseButton1Click:Connect(function()
     local espHiddenActive, espSeeksActive, tpHiddenActive, namesESPActive = false, false, false, false
 
     -- Switches UI
-    local espHiddenFrame, espHiddenSwitch, espHiddenKnob = createCircleSwitch(mainFrame, "ESP Hidden", UDim2.new(0, 10, 0,
+    local espHiddenFrame, espHiddenSwitch, espHiddenKnob = createCircleSwitch(mainFrame, "ESP Hidden", UDim2.new(0, 10, 0, 45))
+    local espSeeksFrame, espSeeksSwitch, espSeeksKnob = createCircleSwitch(mainFrame, "ESP Seeks", UDim2.new(0, 10, 0, 83))
+    local tpHiddenFrame, tpHiddenSwitch, tpHiddenKnob = createCircleSwitch(mainFrame, "TP Hidden", UDim2.new(0, 10, 0, 121))
+    local namesESPFrame, namesESPSwitch, namesESPKnob = createCircleSwitch(mainFrame, "Names ESP", UDim2.new(0, 10, 0, 159))
+
+    -- Lista de jugadores para el TP (scroll)
+    local playerListLabel = Instance.new("TextLabel", mainFrame)
+    playerListLabel.Size = UDim2.new(1, -20, 0, 20)
+    playerListLabel.Position = UDim2.new(0, 10, 0, 197)
+    playerListLabel.Text = "Selecciona jugador a tepear:"
+    playerListLabel.BackgroundTransparency = 1
+    playerListLabel.TextColor3 = Color3.new(1,1,1)
+    playerListLabel.Font = Enum.Font.Gotham
+    playerListLabel.TextSize = 13
+
+    local playerList = Instance.new("ScrollingFrame", mainFrame)
+    playerList.Size = UDim2.new(1, -20, 0, 70)
+    playerList.Position = UDim2.new(0, 10, 0, 217)
+    playerList.BackgroundColor3 = Color3.fromRGB(45,45,45)
+    playerList.CanvasSize = UDim2.new(0,0,0,0)
+    playerList.ScrollBarThickness = 5
+    playerList.BorderSizePixel = 0
+    playerList.Name = "PlayerList"
+
+    local uiListLayout = Instance.new("UIListLayout")
+    uiListLayout.Padding = UDim.new(0,2)
+    uiListLayout.Parent = playerList
+
+    -- ACTUALIZAR LISTA DE JUGADORES
+    local function updatePlayers()
+        for _, child in ipairs(playerList:GetChildren()) do
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+        local btnSelf = Instance.new("TextButton")
+        btnSelf.Size = UDim2.new(1,0,0,22)
+        btnSelf.Text = "[TEST] Tp a ti mismo"
+        btnSelf.Font = Enum.Font.Gotham
+        btnSelf.TextColor3 = Color3.new(1,1,1)
+        btnSelf.BackgroundColor3 = Color3.fromRGB(70,70,100)
+        btnSelf.Parent = playerList
+        btnSelf.MouseButton1Click:Connect(function()
+            selectedPlayer = LocalPlayer
+            for _,b in ipairs(playerList:GetChildren()) do
+                if b:IsA("TextButton") then
+                    b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+                end
+            end
+            btnSelf.BackgroundColor3 = Color3.fromRGB(0,120,255)
+        end)
+        local count = 0
+        for _,plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local btn = Instance.new("TextButton")
+                btn.Size = UDim2.new(1,0,0,22)
+                btn.Text = plr.Name
+                btn.Font = Enum.Font.Gotham
+                btn.TextColor3 = Color3.new(1,1,1)
+                btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+                btn.Parent = playerList
+                btn.MouseButton1Click:Connect(function()
+                    selectedPlayer = plr
+                    for _,b in ipairs(playerList:GetChildren()) do
+                        if b:IsA("TextButton") then
+                            b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+                        end
+                    end
+                    btn.BackgroundColor3 = Color3.fromRGB(0,120,255)
+                end)
+                count = count + 1
+            end
+        end
+        playerList.CanvasSize = UDim2.new(0,0,0,24 + count*22)
+    end
+
+    Players.PlayerAdded:Connect(updatePlayers)
+    Players.PlayerRemoving:Connect(updatePlayers)
+    updatePlayers()
+
+    -- === SWITCH LOGIC ===
+    espHiddenSwitch.MouseButton1Click:Connect(function()
+        espHiddenActive = not espHiddenActive
+        setSwitch(espHiddenSwitch, espHiddenKnob, espHiddenActive, Color3.fromRGB(0,170,255))
+        if espHiddenActive then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and isHidden(player) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    makeESP(player, Color3.fromRGB(0, 140, 255))
+                end
+            end
+        else
+            clearESPType(false)
+        end
+    end)
+    espSeeksSwitch.MouseButton1Click:Connect(function()
+        espSeeksActive = not espSeeksActive
+        setSwitch(espSeeksSwitch, espSeeksKnob, espSeeksActive, Color3.fromRGB(255,0,0))
+        if espSeeksActive then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and isKiller(player) and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    makeESP(player, Color3.fromRGB(255, 0, 0))
+                end
+            end
+        else
+            clearESPType(true)
+        end
+    end)
+    tpHiddenSwitch.MouseButton1Click:Connect(function()
+        tpHiddenActive = not tpHiddenActive
+        setSwitch(tpHiddenSwitch, tpHiddenKnob, tpHiddenActive, Color3.fromRGB(0,180,255))
+        tpEnabled = tpHiddenActive
+    end)
+
+    -- Names ESP Switch (lÃ³gica y visual)
+    local function showNamesESP()
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and isHidden(plr) and plr.Character and plr.Character:FindFirstChild("Head") then
+                if not plr.Character.Head:FindFirstChild("MakalNameESP") then
+                    local tag = Instance.new("BillboardGui")
+                    tag.Name = "MakalNameESP"
+                    tag.Adornee = plr.Character.Head
+                    tag.Parent = plr.Character.Head
+                    tag.Size = UDim2.new(0, 100, 0, 24)
+                    tag.StudsOffset = Vector3.new(0, 2, 0)
+                    tag.AlwaysOnTop = true
+
+                    local txt = Instance.new("TextLabel", tag)
+                    txt.Size = UDim2.new(1, 0, 1, 0)
+                    txt.BackgroundTransparency = 1
+                    txt.Text = plr.Name
+                    txt.Font = Enum.Font.GothamBold
+                    txt.TextColor3 = Color3.fromRGB(0, 140, 255)
+                    txt.TextStrokeTransparency = 0.3
+                    txt.TextSize = 16
+                end
+            end
+        end
+    end
+ 
