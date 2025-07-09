@@ -11,13 +11,12 @@ local DISCORD_LINK = "https://discord.gg/HT4TwYGh5g"
 -- ========== Fix caracteres unicode ==========
 local function fixText(str)
     -- Reemplazos de símbolos mal codificados
-    local fixes = {
-        ["â—"]  = "🔴",  -- Bola roja
-        ["âœ–"]  = "✖",  -- X
-        ["ðŸ¦‘"] = "🦑", -- Pulpo
-        ["âˆ’"]  = "-",   -- Guion normal (menos)
-        ["â€”"]  = "-",   -- Guion largo (em dash → guión simple)
-    }
+    local fixes = 
+        ["â—"]  = "🔴"
+        ["âœ–"]  = "✖" 
+        ["ðŸ¦‘"] = "🦑"
+        ["âˆ’"]  = "-"
+        ["â€”"]  = "-"
 
     for bad, good in pairs(fixes) do
         str = str:gsub(bad, good)
