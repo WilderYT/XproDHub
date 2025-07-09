@@ -208,7 +208,7 @@ local function makeESP(plr, color)
     end
 end
 
--- === FUNCIÃ“N DE TELEPORT/LISTA DE JUGADORES ===
+-- === FUNCIÓN DE TELEPORT/LISTA DE JUGADORES ===
 local selectedPlayer = nil
 local tpEnabled = false
 local hitboxSize = Vector3.new(7,7,7)
@@ -507,7 +507,7 @@ unlockBtn.MouseButton1Click:Connect(function()
         tpEnabled = tpHiddenActive
     end)
 
-    -- Names ESP Switch (lÃ³gica y visual)
+    -- Names ESP Switch (logica y visual)
     local function showNamesESP()
         for _, plr in pairs(Players:GetPlayers()) do
             if plr ~= LocalPlayer and isHidden(plr) and plr.Character and plr.Character:FindFirstChild("Head") then
