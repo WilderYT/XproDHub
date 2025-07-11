@@ -1,22 +1,22 @@
--- Ultra Instinct AutoDodge v4 (FPS Optimized, Cara a Cara Detection, Mobile Button Support)
--- Ink Game Roblox
+-- Ultra Instinct AutoDodge v5 (FPS Ultra Optimized)
+-- Solo activa dodge si hay seeker knife cerca y mirando al torso
+-- No hay bajones de FPS ni lag de cámara
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
--- Dodge Animations
 local DodgeAnims = {
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge1,
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge2,
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge3
 }
 
-local UltraDodgeDistance = 11 -- Solo cara a cara (ajusta si es necesario)
-local DodgeCooldown = 0.65 -- tiempo mínimo entre dodges
+local UltraDodgeDistance = 11
+local DodgeCooldown = 0.65
+local CheckInterval = 0.1
 
 -- UI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
@@ -31,7 +31,7 @@ local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 32)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "Ultra Instinct AutoDodge v4"
+title.Text = "Ultra Instinct AutoDodge v5"
 title.Font = Enum.Font.GothamBold
 title.TextColor3 = Color3.fromRGB(100,255,255)
 title.TextSize = 18
@@ -96,6 +96,7 @@ showHitbox.MouseButton1Click:Connect(function()
     hitboxVisible = not hitboxVisible
     showHitbox.Text = hitboxVisible and "Mostrar Hitbox: ON" or "Mostrar Hitbox: OFF"
     showHitbox.BackgroundColor3 = hitboxVisible and Color3.fromRGB(100,200,80) or Color3.fromRGB(90,90,155)
+    updateHitboxAdornment()
 end)
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
@@ -106,9 +107,9 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- Hitbox visual
+-- Hitbox visual (solo se actualiza cuando cambia el estado)
 local hitboxAdornment = nil
-local function updateHitboxAdornment()
+function updateHitboxAdornment()
     if hitboxAdornment then hitboxAdornment:Destroy() hitboxAdornment = nil end
     if not hitboxVisible then return end
     local live = Workspace:FindFirstChild("Live")
@@ -130,12 +131,15 @@ local function updateHitboxAdornment()
     end
 end
 
-RunService.RenderStepped:Connect(function()
-    if hitboxVisible then updateHitboxAdornment()
-    elseif hitboxAdornment then hitboxAdornment:Destroy() hitboxAdornment = nil end
+-- Solo actualiza adornment si cambia el botón
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.J then
+        updateHitboxAdornment()
+    end
 end)
 
--- Detección cara a cara seeker knife
+-- Detección cara a cara seeker knife (optimizado)
 local function isSeekerKnifeFaceToFace()
     local live = Workspace:FindFirstChild("Live")
     if not live then return false end
@@ -143,20 +147,18 @@ local function isSeekerKnifeFaceToFace()
     local myTorso = myChar and myChar:FindFirstChild("Torso")
     if not myTorso then return false end
 
-    -- Busca todos los cuchillos activos
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name:lower():find("knife") and obj.Parent ~= myChar then
-            -- Solo si hay humanoid en el parent ("Seeker")
-            local seekerHum = obj.Parent:FindFirstChildOfClass("Humanoid")
-            if seekerHum then
-                local dist = (obj.Position - myTorso.Position).Magnitude
-                if dist <= UltraDodgeDistance then
-                    -- Cara a cara: la dirección del cuchillo mira al torso
-                    local dirToTorso = (myTorso.Position - obj.Position).Unit
-                    local knifeLook = obj.CFrame.LookVector.Unit
-                    -- Si el cuchillo mira al torso (dot product > 0.8)
-                    if knifeLook:Dot(dirToTorso) > 0.8 then
-                        return true
+    -- Busca solo en workspace.Live para eficiencia
+    for _, seeker in ipairs(live:GetChildren()) do
+        if seeker ~= myChar then
+            for _, obj in ipairs(seeker:GetChildren()) do
+                if obj:IsA("BasePart") and obj.Name:lower():find("knife") then
+                    local dist = (obj.Position - myTorso.Position).Magnitude
+                    if dist <= UltraDodgeDistance then
+                        local dirToTorso = (myTorso.Position - obj.Position).Unit
+                        local knifeLook = obj.CFrame.LookVector.Unit
+                        if knifeLook:Dot(dirToTorso) > 0.8 then
+                            return true
+                        end
                     end
                 end
             end
@@ -167,40 +169,38 @@ end
 
 -- Mobile: detectar y pulsar el botón Dodge en inventario (sin importar slot)
 local function pressMobileDodgeButton()
-    -- Busca el botón Dodge en cualquier parte de la UI
-    for _, guiObj in ipairs(game:GetService("Players").LocalPlayer.PlayerGui:GetDescendants()) do
-        if guiObj:IsA("TextButton") or guiObj:IsA("ImageButton") then
-            if guiObj.Text and guiObj.Text:lower():find("dodge") then
-                guiObj:Activate() -- Toca el botón virtualmente
-                return true
-            end
-            if guiObj.Name and guiObj.Name:lower():find("dodge") then
-                guiObj:Activate()
-                return true
-            end
+    for _, guiObj in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
+        if (guiObj:IsA("TextButton") or guiObj:IsA("ImageButton")) and guiObj.Visible then
+            if guiObj.Text and guiObj.Text:lower():find("dodge") then guiObj:Activate() return true end
+            if guiObj.Name and guiObj.Name:lower():find("dodge") then guiObj:Activate() return true end
         end
     end
     return false
 end
 
--- PC: activar dodge con tecla (por defecto '4', configurable)
+-- PC: activar dodge con tecla (por defecto '4')
 local function pressPCDodgeKey()
-    UIS.InputBegan:Fire(Enum.KeyCode["Four"]) -- Simula la tecla 4
+    -- Puedes cambiar la tecla aquí si no es '4'
+    local dodgeKey = Enum.KeyCode.Four
+    UIS.InputBegan:Fire(dodgeKey)
 end
 
+-- Loop optimizado (no por frame)
 local lastDodge = 0
-RunService.Heartbeat:Connect(function()
-    if not autododgeOn then return end
-    if tick() - lastDodge < DodgeCooldown then return end
-    if isSeekerKnifeFaceToFace() then
-        if UIS.TouchEnabled then
-            pressMobileDodgeButton()
-        else
-            -- Puedes configurar la tecla si no es '4'
-            UIS.InputBegan:Fire(Enum.KeyCode["Four"])
+spawn(function()
+    while true do
+        if autododgeOn and (tick() - lastDodge > DodgeCooldown) then
+            if isSeekerKnifeFaceToFace() then
+                if UIS.TouchEnabled then
+                    pressMobileDodgeButton()
+                else
+                    pressPCDodgeKey()
+                end
+                lastDodge = tick()
+            end
         end
-        lastDodge = tick()
+        wait(CheckInterval)
     end
 end)
 
-print("Ultra Instinct AutoDodge v4 activo. FPS optimizado, cara a cara, mobile y PC soportados.")
+print("Ultra Instinct AutoDodge v5 ultra optimizado. Sin lag, solo dodge si hay seeker knife cara a cara.")
