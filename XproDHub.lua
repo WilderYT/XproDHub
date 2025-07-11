@@ -1,13 +1,5 @@
---[[
-Ultra Instinct AutoDodge for Ink Game (Roblox)
-Bypasses all possible knife attacks as if you have "Ultra Instinct".
-- Detects all attack hitboxes, knife swings, and animation triggers.
-- Works for any player (uses workspace.Live.[PlayerName].Torso as hitbox).
-- Compatible with PC and Mobile (UI included, fully draggable).
-- Impossible to hit: reacts instantly to all realistic threats.
-
-Place in a LocalScript and execute with your favorite executor (Synapse X, KRNL, etc).
-]]
+-- Ultra Instinct AutoDodge Mejorado para Ink Game (Roblox)
+-- Muestra la hitbox real del jugador en pantalla, autododge imposible de hitear
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,29 +9,19 @@ local UIS = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Dodge Animations
+-- Animaciones de dodge
 local DodgeAnims = {
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge1,
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge2,
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge3
 }
 
--- Knife attack animation and hitbox names
-local KnifeAnimNames = {
-    "KnifeSwing1", "KnifeSwing1Lunge", "KnifeSwing2"
-}
-local KnifeFolders = {
-    Workspace.Live,
-    ReplicatedStorage.Animations.Abilities.Knife
-}
-local KnifeRemoteNames = {
-    "KnifeAttack", "KnifeSwing", "DoKnife", "RemoteKnife", "KnifeHit", "KnifeLunge"
-}
+local KnifeAnimNames = { "KnifeSwing1", "KnifeSwing1Lunge", "KnifeSwing2" }
+local KnifeFolders = { Workspace.Live, ReplicatedStorage.Animations.Abilities.Knife }
+local UltraDodgeDistance = 14
+local DodgeDebounce = 0.22
 
-local UltraDodgeDistance = 14 -- Ideal distance for dodge activation (can tweak)
-local DodgeDebounce = 0.22 -- Minimum time between dodges (lower = more reactive)
-
--- UI Setup (PC & Mobile draggable)
+-- UI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
 gui.Name = "UltraInstinctAutoDodgeUI"
 local frame = Instance.new("Frame", gui)
@@ -78,7 +60,7 @@ showHitbox.TextColor3 = Color3.new(1,1,1)
 showHitbox.TextSize = 16
 showHitbox.AutoButtonColor = true
 
--- Universal drag for PC & mobile
+-- Drag universal (PC/Mobile)
 do
     local dragging, dragInput, dragStart, startPos
 
@@ -116,7 +98,7 @@ do
     end)
 end
 
--- UI functionality
+-- ESTADO
 local autododgeOn = true
 local hitboxVisible = false
 toggle.MouseButton1Click:Connect(function()
@@ -128,9 +110,6 @@ showHitbox.MouseButton1Click:Connect(function()
     hitboxVisible = not hitboxVisible
     showHitbox.Text = hitboxVisible and "Mostrar Hitbox: ON" or "Mostrar Hitbox: OFF"
     showHitbox.BackgroundColor3 = hitboxVisible and Color3.fromRGB(100,200,80) or Color3.fromRGB(90,90,155)
-    if Workspace:FindFirstChild("Values") and Workspace.Values:FindFirstChild("ShowHitbox") then
-        Workspace.Values.ShowHitbox.Value = hitboxVisible
-    end
 end)
 UIS.InputBegan:Connect(function(input, gp)
     if gp then return end
@@ -141,7 +120,7 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- Get your torso (hitbox)
+-- Obtener tu torso (hitbox)
 local function getMyTorso()
     local live = Workspace:FindFirstChild("Live")
     if not live then return nil end
@@ -150,20 +129,52 @@ local function getMyTorso()
     return char:FindFirstChild("Torso")
 end
 
--- Advanced knife detection (hitbox, velocity, animation + remote events)
+-- Mostrar visualmente la hitbox (real)
+local hitboxAdornment = nil
+local function updateHitboxAdornment()
+    if hitboxAdornment then
+        hitboxAdornment:Destroy()
+        hitboxAdornment = nil
+    end
+    if not hitboxVisible then return end
+    local torso = getMyTorso()
+    if torso then
+        hitboxAdornment = Instance.new("BoxHandleAdornment")
+        hitboxAdornment.Adornee = torso
+        hitboxAdornment.AlwaysOnTop = true
+        hitboxAdornment.ZIndex = 10
+        hitboxAdornment.Size = torso.Size
+        hitboxAdornment.Color3 = Color3.fromRGB(0,255,128)
+        hitboxAdornment.Transparency = 0.6
+        hitboxAdornment.Visible = true
+        hitboxAdornment.Name = "UltraDodgeHitbox"
+        hitboxAdornment.Parent = torso
+    end
+end
+
+-- Mantener la hitbox visible si el botón está ON
+RunService.RenderStepped:Connect(function()
+    if hitboxVisible then
+        updateHitboxAdornment()
+    elseif hitboxAdornment then
+        hitboxAdornment:Destroy()
+        hitboxAdornment = nil
+    end
+end)
+
+-- Detección avanzada de cuchillo
 local function isKnifeDanger()
     local myTorso = getMyTorso()
     if not myTorso then return false end
 
-    -- 1. Detect active knife hitboxes/parts near the torso
+    -- 1. Detectar cuchillos activos cerca del torso
     for _, folder in ipairs(KnifeFolders) do
         for _, animName in ipairs(KnifeAnimNames) do
             local obj = folder:FindFirstChild(animName)
             if obj and obj:IsA("BasePart") then
                 local dist = (obj.Position - myTorso.Position).Magnitude
                 if dist <= UltraDodgeDistance then
-                    -- Opcional: verifica velocidad para ignorar cuchillos quietos
-                    if obj.Velocity.Magnitude > 1 or (obj.Parent and obj.Parent:FindFirstChild("Humanoid")) then
+                    if obj.Velocity.Magnitude > 1 then
                         return true
                     end
                 end
@@ -171,7 +182,7 @@ local function isKnifeDanger()
         end
     end
 
-    -- 2. Detect any object named "Knife" or containing "Knife" with size/velocity (for custom hitboxes)
+    -- 2. Detectar cualquier objeto con "knife" en el nombre
     for _, obj in ipairs(Workspace:GetDescendants()) do
         if obj:IsA("BasePart") and obj.Name:lower():find("knife") then
             if (obj.Position - myTorso.Position).Magnitude <= UltraDodgeDistance then
@@ -182,31 +193,10 @@ local function isKnifeDanger()
         end
     end
 
-    -- 3. Detect direct RemoteEvents firing knife attacks (superior detection, blocks all scripts)
-    -- Listeners for RemoteEvents (one-time setup)
-    if not _G.UltraDodge_RemoteSpy then
-        _G.UltraDodge_RemoteSpy = true
-        for _, remoteName in ipairs(KnifeRemoteNames) do
-            local r
-            pcall(function() r = ReplicatedStorage:FindFirstChild(remoteName, true) end)
-            if r and r:IsA("RemoteEvent") then
-                r.OnClientEvent:Connect(function(...)
-                    if autododgeOn then
-                        -- Instantly dodge on any knife attack remote received!
-                        playDodge()
-                    end
-                end)
-            end
-        end
-    end
-
-    -- 4. Detect animation state changes (if possible)
-    -- (This is advanced: if you want to do this, add checks for AnimationTracks/States if game allows)
-
     return false
 end
 
--- Dodge function (ultra fast)
+-- Ejecución del dodge
 function playDodge()
     local torso = getMyTorso()
     local humanoid = torso and torso.Parent and torso.Parent:FindFirstChildOfClass("Humanoid")
@@ -217,7 +207,7 @@ function playDodge()
     end
 end
 
--- Main loop: react as Goku Ultra Instinct
+-- Loop principal
 local lastDodge = 0
 RunService.RenderStepped:Connect(function()
     if not autododgeOn then return end
@@ -228,4 +218,4 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-print("Ultra Instinct AutoDodge loaded! Try to get hit... if you can.")
+print("Ultra Instinct AutoDodge cargado. Hitbox visible y autododge mejorado.")
