@@ -1,5 +1,13 @@
--- Ultra Instinct AutoDodge Mejorado para Ink Game (Roblox)
--- Muestra la hitbox real del jugador en pantalla, autododge imposible de hitear
+--[[
+Ultra Instinct AutoDodge v3 para Ink Game (Roblox)
+- Optimizado para evitar bajones de FPS o lag.
+- Solo activa Dodge cuando un knife está cerca del torso de cualquier jugador.
+- UI draggable, compatible PC/Mobile.
+- Hitbox visual real del torso.
+- Basado en la imagen ![image1](image1), el botón DODGE (slot 4) puede usarse si requieres RemoteEvent.
+
+Coloca este script en un LocalScript y ejecútalo con tu executor favorito.
+]]
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,7 +17,7 @@ local UIS = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
--- Animaciones de dodge
+-- Dodge Animations
 local DodgeAnims = {
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge1,
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge2,
@@ -17,9 +25,8 @@ local DodgeAnims = {
 }
 
 local KnifeAnimNames = { "KnifeSwing1", "KnifeSwing1Lunge", "KnifeSwing2" }
-local KnifeFolders = { Workspace.Live, ReplicatedStorage.Animations.Abilities.Knife }
-local UltraDodgeDistance = 14
-local DodgeDebounce = 0.22
+local UltraDodgeDistance = 13 -- ajusta si es necesario
+local DodgeCooldown = 0.55 -- tiempo mínimo entre dodges
 
 -- UI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
@@ -29,13 +36,12 @@ frame.Size = UDim2.new(0, 230, 0, 120)
 frame.Position = UDim2.new(0, 30, 0, 210)
 frame.BackgroundColor3 = Color3.fromRGB(20, 22, 36)
 frame.Active = true
-frame.Draggable = false
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 32)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "Ultra Instinct AutoDodge"
+title.Text = "Ultra Instinct AutoDodge v3"
 title.Font = Enum.Font.GothamBold
 title.TextColor3 = Color3.fromRGB(100,255,255)
 title.TextSize = 18
@@ -98,7 +104,7 @@ do
     end)
 end
 
--- ESTADO
+-- Estado
 local autododgeOn = true
 local hitboxVisible = false
 toggle.MouseButton1Click:Connect(function()
@@ -120,16 +126,22 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- Obtener tu torso (hitbox)
-local function getMyTorso()
+-- Función para obtener torsos de todos los players
+local function getAllTorsos()
+    local torsos = {}
     local live = Workspace:FindFirstChild("Live")
-    if not live then return nil end
-    local char = live:FindFirstChild(LocalPlayer.Name)
-    if not char then return nil end
-    return char:FindFirstChild("Torso")
+    if live then
+        for _, char in ipairs(live:GetChildren()) do
+            local torso = char:FindFirstChild("Torso")
+            if torso then
+                table.insert(torsos, torso)
+            end
+        end
+    end
+    return torsos
 end
 
--- Mostrar visualmente la hitbox (real)
+-- Mostrar visualmente la hitbox real del torso local
 local hitboxAdornment = nil
 local function updateHitboxAdornment()
     if hitboxAdornment then
@@ -137,22 +149,28 @@ local function updateHitboxAdornment()
         hitboxAdornment = nil
     end
     if not hitboxVisible then return end
-    local torso = getMyTorso()
-    if torso then
+    local myTorso = nil
+    local live = Workspace:FindFirstChild("Live")
+    if live then
+        local char = live:FindFirstChild(LocalPlayer.Name)
+        if char then
+            myTorso = char:FindFirstChild("Torso")
+        end
+    end
+    if myTorso then
         hitboxAdornment = Instance.new("BoxHandleAdornment")
-        hitboxAdornment.Adornee = torso
+        hitboxAdornment.Adornee = myTorso
         hitboxAdornment.AlwaysOnTop = true
         hitboxAdornment.ZIndex = 10
-        hitboxAdornment.Size = torso.Size
+        hitboxAdornment.Size = myTorso.Size
         hitboxAdornment.Color3 = Color3.fromRGB(0,255,128)
         hitboxAdornment.Transparency = 0.6
         hitboxAdornment.Visible = true
         hitboxAdornment.Name = "UltraDodgeHitbox"
-        hitboxAdornment.Parent = torso
+        hitboxAdornment.Parent = myTorso
     end
 end
 
--- Mantener la hitbox visible si el botón está ON
 RunService.RenderStepped:Connect(function()
     if hitboxVisible then
         updateHitboxAdornment()
@@ -162,60 +180,77 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Detección avanzada de cuchillo
-local function isKnifeDanger()
-    local myTorso = getMyTorso()
-    if not myTorso then return false end
+-- Detección de knife cerca de cualquier torso de los players
+local function isKnifeNearAnyTorso()
+    local torsos = getAllTorsos()
+    if #torsos == 0 then return false end
 
-    -- 1. Detectar cuchillos activos cerca del torso
-    for _, folder in ipairs(KnifeFolders) do
+    -- Buscar todos los cuchillos activos en workspace
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name:lower():find("knife") then
+            for _, torso in ipairs(torsos) do
+                local dist = (obj.Position - torso.Position).Magnitude
+                if dist <= UltraDodgeDistance and obj.Velocity.Magnitude > 1 then
+                    return torso
+                end
+            end
+        end
+    end
+    -- Además buscar los animNames específicos en workspace.Live
+    for _, char in ipairs(Workspace.Live:GetChildren()) do
         for _, animName in ipairs(KnifeAnimNames) do
-            local obj = folder:FindFirstChild(animName)
-            if obj and obj:IsA("BasePart") then
-                local dist = (obj.Position - myTorso.Position).Magnitude
-                if dist <= UltraDodgeDistance then
-                    if obj.Velocity.Magnitude > 1 then
-                        return true
+            local knife = char:FindFirstChild(animName)
+            if knife and knife:IsA("BasePart") then
+                for _, torso in ipairs(torsos) do
+                    local dist = (knife.Position - torso.Position).Magnitude
+                    if dist <= UltraDodgeDistance and knife.Velocity.Magnitude > 1 then
+                        return torso
                     end
                 end
             end
         end
     end
-
-    -- 2. Detectar cualquier objeto con "knife" en el nombre
-    for _, obj in ipairs(Workspace:GetDescendants()) do
-        if obj:IsA("BasePart") and obj.Name:lower():find("knife") then
-            if (obj.Position - myTorso.Position).Magnitude <= UltraDodgeDistance then
-                if obj.Velocity.Magnitude > 1 then
-                    return true
-                end
-            end
-        end
-    end
-
     return false
 end
 
--- Ejecución del dodge
+-- Ejecutar Dodge solo si el knife está cerca del torso y cooldown
+local lastDodge = 0
 function playDodge()
-    local torso = getMyTorso()
-    local humanoid = torso and torso.Parent and torso.Parent:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        local anim = humanoid:LoadAnimation(DodgeAnims[math.random(1, #DodgeAnims)])
-        anim.Priority = Enum.AnimationPriority.Action
-        anim:Play()
+    local myTorso = nil
+    local live = Workspace:FindFirstChild("Live")
+    if live then
+        local char = live:FindFirstChild(LocalPlayer.Name)
+        if char then
+            myTorso = char:FindFirstChild("Torso")
+        end
+    end
+    if myTorso then
+        local humanoid = myTorso.Parent and myTorso.Parent:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            local anim = humanoid:LoadAnimation(DodgeAnims[math.random(1, #DodgeAnims)])
+            anim.Priority = Enum.AnimationPriority.Action
+            anim:Play()
+        end
     end
 end
 
--- Loop principal
-local lastDodge = 0
-RunService.RenderStepped:Connect(function()
+RunService.Heartbeat:Connect(function()
     if not autododgeOn then return end
-    if tick() - lastDodge < DodgeDebounce then return end
-    if isKnifeDanger() then
+    if tick() - lastDodge < DodgeCooldown then return end
+    local torsoToDodge = isKnifeNearAnyTorso()
+    -- Solo activa si el knife está cerca del torso local
+    local myTorso = nil
+    local live = Workspace:FindFirstChild("Live")
+    if live then
+        local char = live:FindFirstChild(LocalPlayer.Name)
+        if char then
+            myTorso = char:FindFirstChild("Torso")
+        end
+    end
+    if torsoToDodge and myTorso and torsoToDodge == myTorso then
         playDodge()
         lastDodge = tick()
     end
 end)
 
-print("Ultra Instinct AutoDodge cargado. Hitbox visible y autododge mejorado.")
+print("Ultra Instinct AutoDodge v3 activo. Optimizado, sin lag ni spam. UI y hitbox real.")
