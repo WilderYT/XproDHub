@@ -18,7 +18,7 @@ local CheckInterval = 0.2
 
 -- UI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
-gui.Name = "UltraInstinctAutoDodgeUI"
+gui.Name = "AutoDodgeUI"
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0, 230, 0, 120)
 frame.Position = UDim2.new(0, 30, 0, 210)
@@ -29,7 +29,7 @@ local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 32)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "Ultra Instinct AutoDodge v7"
+title.Text = "AutoDodge v7"
 title.Font = Enum.Font.GothamBold
 title.TextColor3 = Color3.fromRGB(100,255,255)
 title.TextSize = 18
