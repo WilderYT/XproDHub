@@ -1,5 +1,3 @@
--- AutoDodge v7 adaptado: detecta botón Dodge en el Backpack y lo pulsa para esquivar en PC/Mobile.
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -29,7 +27,7 @@ local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 32)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "AutoDodge v7"
+title.Text = "AutoDodge v7.2"
 title.Font = Enum.Font.GothamBold
 title.TextColor3 = Color3.fromRGB(100,255,255)
 title.TextSize = 18
@@ -54,7 +52,6 @@ showHitbox.TextColor3 = Color3.new(1,1,1)
 showHitbox.TextSize = 16
 showHitbox.AutoButtonColor = true
 
--- Universal drag (PC/Mobile)
 do
     local dragging, dragInput, dragStart, startPos
     local function update(input)
@@ -106,7 +103,6 @@ UIS.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- Hitbox visual
 local hitboxAdornment = nil
 function updateHitboxAdornment()
     if hitboxAdornment then hitboxAdornment:Destroy() hitboxAdornment = nil end
@@ -130,7 +126,6 @@ function updateHitboxAdornment()
     end
 end
 
--- Detecta knife cerca y cara a cara
 local function isKnifeFaceToFace()
     local live = Workspace:FindFirstChild("Live")
     local myChar = live and live:FindFirstChild(LocalPlayer.Name)
@@ -156,23 +151,17 @@ local function isKnifeFaceToFace()
     return false
 end
 
--- Detectar y pulsar el botón Dodge en el Backpack, PC/Mobile
 local function pressBackpackDodgeButton()
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if backpack then
         for _, item in ipairs(backpack:GetChildren()) do
-            -- Intentar encontrar el botón Dodge dentro de las tools
             if item:IsA("Tool") and (item.Name:lower():find("dodge") or (item.ToolTip and item.ToolTip:lower():find("dodge"))) then
-                -- Simula la activación del botón Dodge
                 LocalPlayer.Character.Humanoid:EquipTool(item)
-                -- Si el tool tiene Remote/Event para Dodge, lo puedes activar aquí
-                -- Por defecto, solo equipa el tool Dodge
                 return true
             end
         end
     end
 
-    -- Además, intenta activar el botón Dodge en la UI por si está presente
     for _, guiObj in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
         if (guiObj:IsA("TextButton") or guiObj:IsA("ImageButton")) and guiObj.Visible then
             if guiObj.Text and guiObj.Text:lower():find("dodge") then guiObj:Activate() return true end
@@ -182,9 +171,8 @@ local function pressBackpackDodgeButton()
     return false
 end
 
--- PC: activar dodge con tecla (por defecto '4')
 local function pressPCDodgeKey()
-    local dodgeKey = Enum.KeyCode.Four
+    local dodgeKey = Enum.KeyCode.Q
     UIS.InputBegan:Fire(dodgeKey)
 end
 
@@ -206,4 +194,4 @@ spawn(function()
     end
 end)
 
-print("AutoDodge v7 adaptado: Dodge por Backpack button o UI. 100% funcional.")
+print("AutoDodge v7.2 actualizado: Dodge con Q en PC, Backpack y botón en Mobile. 100% funcional.")
