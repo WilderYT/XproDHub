@@ -1,5 +1,4 @@
--- Ultra Instinct AutoDodge v7 (FPS Ultra Optimized, Compatible con ESP Seekers en rojo)
--- Solo dodgea si un knife está cerca y cara a cara de tu torso, ignora seekers y roles.
+-- AutoDodge v7
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -55,7 +54,6 @@ showHitbox.TextColor3 = Color3.new(1,1,1)
 showHitbox.TextSize = 16
 showHitbox.AutoButtonColor = true
 
--- Universal drag (PC/Mobile)
 do
     local dragging, dragInput, dragStart, startPos
     local function update(input)
@@ -131,14 +129,12 @@ function updateHitboxAdornment()
     end
 end
 
--- Detección solo de knives cerca del torso (ignora seekers/roles)
 local function isKnifeFaceToFace()
     local live = Workspace:FindFirstChild("Live")
     local myChar = live and live:FindFirstChild(LocalPlayer.Name)
     local myTorso = myChar and myChar:FindFirstChild("Torso")
     if not myTorso then return false end
 
-    -- Busca knives en workspace.Live únicamente
     for _, playerChar in ipairs(live:GetChildren()) do
         if playerChar ~= myChar then
             for _, obj in ipairs(playerChar:GetChildren()) do
@@ -158,7 +154,6 @@ local function isKnifeFaceToFace()
     return false
 end
 
--- Mobile: detectar y pulsar el botón Dodge en inventario
 local function pressMobileDodgeButton()
     for _, guiObj in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
         if (guiObj:IsA("TextButton") or guiObj:IsA("ImageButton")) and guiObj.Visible then
@@ -169,13 +164,11 @@ local function pressMobileDodgeButton()
     return false
 end
 
--- PC: activar dodge con tecla (por defecto '4')
 local function pressPCDodgeKey()
     local dodgeKey = Enum.KeyCode.Four
     UIS.InputBegan:Fire(dodgeKey)
 end
 
--- Loop optimizado (no por frame)
 local lastDodge = 0
 spawn(function()
     while true do
@@ -193,4 +186,4 @@ spawn(function()
     end
 end)
 
-print("Ultra Instinct AutoDodge v7 optimizado. Solo dodgea knife cerca del torso. Compatible con ESP Seekers.")
+print("AutoDodge v7.")
