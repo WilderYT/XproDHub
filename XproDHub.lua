@@ -1,6 +1,5 @@
--- Ultra Instinct AutoDodge v5 (FPS Ultra Optimized)
--- Solo activa dodge si hay seeker knife cerca y mirando al torso
--- No hay bajones de FPS ni lag de cámara
+-- Ultra Instinct AutoDodge v7 (FPS Ultra Optimized, Compatible con ESP Seekers en rojo)
+-- Solo dodgea si un knife está cerca y cara a cara de tu torso, ignora seekers y roles.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,9 +13,9 @@ local DodgeAnims = {
     ReplicatedStorage.Animations.Abilities.Dodge.Dodge3
 }
 
-local UltraDodgeDistance = 11
-local DodgeCooldown = 0.65
-local CheckInterval = 0.1
+local UltraDodgeDistance = 10.5
+local DodgeCooldown = 0.8
+local CheckInterval = 0.2
 
 -- UI
 local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
@@ -31,7 +30,7 @@ local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 32)
 title.Position = UDim2.new(0,0,0,0)
 title.BackgroundTransparency = 1
-title.Text = "Ultra Instinct AutoDodge v5"
+title.Text = "Ultra Instinct AutoDodge v7"
 title.Font = Enum.Font.GothamBold
 title.TextColor3 = Color3.fromRGB(100,255,255)
 title.TextSize = 18
@@ -104,10 +103,11 @@ UIS.InputBegan:Connect(function(input, gp)
         autododgeOn = not autododgeOn
         toggle.Text = autododgeOn and "AutoDodge: ON" or "AutoDodge: OFF"
         toggle.BackgroundColor3 = autododgeOn and Color3.fromRGB(45,200,180) or Color3.fromRGB(70,30,30)
+        updateHitboxAdornment()
     end
 end)
 
--- Hitbox visual (solo se actualiza cuando cambia el estado)
+-- Hitbox visual
 local hitboxAdornment = nil
 function updateHitboxAdornment()
     if hitboxAdornment then hitboxAdornment:Destroy() hitboxAdornment = nil end
@@ -131,26 +131,17 @@ function updateHitboxAdornment()
     end
 end
 
--- Solo actualiza adornment si cambia el botón
-UIS.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.J then
-        updateHitboxAdornment()
-    end
-end)
-
--- Detección cara a cara seeker knife (optimizado)
-local function isSeekerKnifeFaceToFace()
+-- Detección solo de knives cerca del torso (ignora seekers/roles)
+local function isKnifeFaceToFace()
     local live = Workspace:FindFirstChild("Live")
-    if not live then return false end
-    local myChar = live:FindFirstChild(LocalPlayer.Name)
+    local myChar = live and live:FindFirstChild(LocalPlayer.Name)
     local myTorso = myChar and myChar:FindFirstChild("Torso")
     if not myTorso then return false end
 
-    -- Busca solo en workspace.Live para eficiencia
-    for _, seeker in ipairs(live:GetChildren()) do
-        if seeker ~= myChar then
-            for _, obj in ipairs(seeker:GetChildren()) do
+    -- Busca knives en workspace.Live únicamente
+    for _, playerChar in ipairs(live:GetChildren()) do
+        if playerChar ~= myChar then
+            for _, obj in ipairs(playerChar:GetChildren()) do
                 if obj:IsA("BasePart") and obj.Name:lower():find("knife") then
                     local dist = (obj.Position - myTorso.Position).Magnitude
                     if dist <= UltraDodgeDistance then
@@ -167,7 +158,7 @@ local function isSeekerKnifeFaceToFace()
     return false
 end
 
--- Mobile: detectar y pulsar el botón Dodge en inventario (sin importar slot)
+-- Mobile: detectar y pulsar el botón Dodge en inventario
 local function pressMobileDodgeButton()
     for _, guiObj in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
         if (guiObj:IsA("TextButton") or guiObj:IsA("ImageButton")) and guiObj.Visible then
@@ -180,7 +171,6 @@ end
 
 -- PC: activar dodge con tecla (por defecto '4')
 local function pressPCDodgeKey()
-    -- Puedes cambiar la tecla aquí si no es '4'
     local dodgeKey = Enum.KeyCode.Four
     UIS.InputBegan:Fire(dodgeKey)
 end
@@ -190,7 +180,7 @@ local lastDodge = 0
 spawn(function()
     while true do
         if autododgeOn and (tick() - lastDodge > DodgeCooldown) then
-            if isSeekerKnifeFaceToFace() then
+            if isKnifeFaceToFace() then
                 if UIS.TouchEnabled then
                     pressMobileDodgeButton()
                 else
@@ -203,4 +193,4 @@ spawn(function()
     end
 end)
 
-print("Ultra Instinct AutoDodge v5 ultra optimizado. Sin lag, solo dodge si hay seeker knife cara a cara.")
+print("Ultra Instinct AutoDodge v7 optimizado. Solo dodgea knife cerca del torso. Compatible con ESP Seekers.")
