@@ -271,57 +271,40 @@ makeSwitch(
     function(v) getgenv().XproD_BringBandits = v end
 )
 
--- PANEL DE CRÉDITOS MEJORADO
--- ... (igual que tu script actual)
+-- =============== FUNCIONES DE SWORD Y FARM AUTOMÁTICO ===============
 
--- ANTI AFK PANEL (SETTINGS)
--- ... (igual que tu script actual)
+-- Detectar si la espada está equipada usando workspace.Xprodnow.EquippedSword
+local function isSwordEquipped()
+    return workspace:FindFirstChild("Xprodnow") and workspace.Xprodnow:FindFirstChild("EquippedSword")
+end
 
--- PANEL SWITCHING LOGIC
--- ... (igual que tu script actual)
-
--- FARMEOS (Speed) -- igual que antes
-
--- FARMEOS (Agility) -- igual que antes
-
--- =============== ACTUALIZADO: EQUIPAR ESPADA Y TRAIN SWORD ===================
+-- Equipar la espada usando RemoteEvents si es necesario (según tu juego):
 local function equipSwordProperly()
     pcall(function()
         game:GetService("ReplicatedStorage").RemoteEvents.EquipSwordEvent:FireServer()
         game:GetService("ReplicatedStorage").RemoteEvents.RequestEquipSword:FireServer()
     end)
-    task.wait(0.2)
-    local player = game.Players.LocalPlayer
-    -- Cambia "sword" por el nombre real si tu espada se llama diferente
-    for _, tool in ipairs(player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name:lower():find("sword") then
-            tool.Parent = player.Character
-            break
-        end
-    end
+    -- Ya no es necesario buscar la Tool en Backpack ni moverla al Character
 end
 
+-- Farm automático de Sword (entrenar estadísticas automáticamente)
 local swordFarmRunning = false
 local function swordFarmLoop()
     if swordFarmRunning then return end
     swordFarmRunning = true
     while getgenv().XproD_TrainSword do
         equipSwordProperly()
-        local player = game.Players.LocalPlayer
-        if player.Character then
-            local sword = player.Character:FindFirstChildWhichIsA("Tool")
-            if sword then
-                sword:Activate()
-                pcall(function()
-                    game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
-                end)
-            end
+        -- Si la espada está equipada, simulamos un "click" para entrenar
+        if isSwordEquipped() then
+            pcall(function()
+                -- Simular ataque (sube stats y también puede matar bandits si están cerca)
+                game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
+            end)
         end
         task.wait(0.25)
     end
     swordFarmRunning = false
 end
--- =================== FIN ACTUALIZADO TRAIN SWORD ============================
 
 -- FUNCIONES PARA AUTO FARM BANDIT AVANZADO
 local function tpToBandit(bandit)
@@ -354,21 +337,15 @@ local function bringAllBanditsToMe()
     end
 end
 
--- =============== ACTUALIZADO: ATAQUE BANDIT ===================
 local function attackBandit(bandit)
     equipSwordProperly()
-    local player = game.Players.LocalPlayer
-    if player.Character then
-        local sword = player.Character:FindFirstChildWhichIsA("Tool")
-        if sword then
-            sword:Activate()
-            pcall(function()
-                game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
-            end)
-        end
+    -- Si la espada está equipada, simula el click de ataque igual que en el farm de sword
+    if isSwordEquipped() then
+        pcall(function()
+            game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
+        end)
     end
 end
--- =================== FIN ACTUALIZADO ATAQUE BANDIT ============================
 
 local banditFarmRunning = false
 local function autoFarmBanditLoop()
@@ -393,6 +370,8 @@ local function autoFarmBanditLoop()
     end
     banditFarmRunning = false
 end
+
+-- FARMEOS (Speed y Agility) -- igual que antes, si tienes funciones para ellos, agrégalas aquí
 
 -- Lanzadores iniciales
 if getgenv().XproD_TrainSpeed then spawn(speedFarmLoop) end
@@ -462,3 +441,9 @@ spawn(function()
         wait(0.5)
     end
 end)
+
+-- PANEL DE CRÉDITOS MEJORADO
+-- ... (igual que tu script actual)
+
+-- SETTINGS Y SWITCHING LOGIC
+-- ... (igual que tu script actual)
