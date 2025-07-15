@@ -1,4 +1,5 @@
 -- XproD Hub | GUI profesional optimizada usando hotkey Button_4 para equipar sword como el HUD original
+-- Usa VirtualInputManager para simular el click real en el botón y evitar errores de .Fire()/.Activate()
 
 -- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
@@ -292,15 +293,22 @@ makeSwitch(
 )
 
 ----------------------
--- FUNCIONES: EQUIP SWORD Y FARM (usando Button_4 del HUD)
+-- FUNCIONES: EQUIP SWORD Y FARM (usando Button_4 del HUD con VirtualInputManager)
 ----------------------
 
--- Equipa la sword actual (la que tengas seleccionada en tu HUD, botón central inferior)
 function equipSwordHotkey()
     local plr = game:GetService("Players").LocalPlayer
     local mainGui = plr.PlayerGui:FindFirstChild("Main")
     if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
-        mainGui.Hotkeys.Button_4.MouseButton1Click:Fire()
+        local btn = mainGui.Hotkeys.Button_4
+        -- Usar VirtualInputManager para simular el click real
+        local vim = game:GetService("VirtualInputManager")
+        local absPos = btn.AbsolutePosition
+        local absSize = btn.AbsoluteSize
+        local x = absPos.X + absSize.X/2
+        local y = absPos.Y + absSize.Y/2
+        vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
+        vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
         wait(0.1)
         return true
     end
