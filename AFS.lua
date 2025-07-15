@@ -1,7 +1,11 @@
 -- XproD Hub | GUI profesional con icono visual, Training, Credits y Settings (Anti AFK) by Smith
 
+-- GLOBALS EXTENDIDAS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
 getgenv().XproD_TrainAgility = getgenv().XproD_TrainAgility or false
+getgenv().XproD_TrainSword = getgenv().XproD_TrainSword or false
+getgenv().XproD_AutoFarmBandit = getgenv().XproD_AutoFarmBandit or false
+getgenv().XproD_BringBandits = getgenv().XproD_BringBandits or false
 getgenv().XproD_AntiAFK = getgenv().XproD_AntiAFK or false
 
 pcall(function() game.CoreGui.XproD_Hub:Destroy() end)
@@ -11,7 +15,7 @@ gui.Name = "XproD_Hub"
 gui.Parent = game:GetService("CoreGui")
 gui.ResetOnSpawn = false
 
--- ÃCONO VISUAL PARA ABRIR/CERRAR (cÃ­rculo morado con X, movible)
+-- ÍCONO VISUAL PARA ABRIR/CERRAR (círculo morado con X, movible)
 local IconBtn = Instance.new("ImageButton", gui)
 IconBtn.Name = "OpenCloseIcon"
 IconBtn.Size = UDim2.new(0, 54, 0, 54)
@@ -56,7 +60,7 @@ MainFrame.BorderSizePixel = 0
 MainFrame.ZIndex = 10
 MainFrame.Visible = true
 
--- Fondo decorativo lÃ­neas/capas
+-- Fondo decorativo líneas/capas
 local DecoBG = Instance.new("ImageLabel", MainFrame)
 DecoBG.Size = UDim2.new(1, 0, 1, 0)
 DecoBG.Position = UDim2.new(0, 0, 0, 0)
@@ -251,129 +255,32 @@ makeSwitch(
     function() return getgenv().XproD_TrainAgility end,
     function(v) getgenv().XproD_TrainAgility = v end
 )
-
--- PANEL DE CRÃ‰DITOS MEJORADO
-local CreditPanel = Instance.new("Frame", MainFrame)
-CreditPanel.Name = "CreditPanel"
-CreditPanel.Size = TrainPanel.Size
-CreditPanel.Position = TrainPanel.Position
-CreditPanel.BackgroundTransparency = 1
-CreditPanel.ZIndex = 12
-
-local bySmith = Instance.new("TextLabel", CreditPanel)
-bySmith.Text = "by Smith"
-bySmith.Font = Enum.Font.GothamBold
-bySmith.TextSize = 22
-bySmith.TextColor3 = Color3.fromRGB(255, 255, 255)
-bySmith.Position = UDim2.new(0, 0, 0, 35)
-bySmith.Size = UDim2.new(1, 0, 0, 40)
-bySmith.BackgroundTransparency = 1
-bySmith.TextYAlignment = Enum.TextYAlignment.Top
-bySmith.TextXAlignment = Enum.TextXAlignment.Center
-bySmith.ZIndex = 17
-
-local upcomingMsg = Instance.new("TextLabel", CreditPanel)
-upcomingMsg.Text = "The script will soon be released with an improved version with all the autofarm and Â¡zone TPS!"
-upcomingMsg.Font = Enum.Font.Gotham
-upcomingMsg.TextSize = 16
-upcomingMsg.TextColor3 = Color3.fromRGB(220, 220, 220)
-upcomingMsg.Position = UDim2.new(0.1, 0, 0, 90)
-upcomingMsg.Size = UDim2.new(0.8, 0, 0, 80)
-upcomingMsg.BackgroundTransparency = 1
-upcomingMsg.TextYAlignment = Enum.TextYAlignment.Top
-upcomingMsg.TextXAlignment = Enum.TextXAlignment.Center
-upcomingMsg.TextWrapped = true
-upcomingMsg.ZIndex = 17
-
-CreditPanel.Visible = false
-
--- ANTI AFK PANEL (SETTINGS)
-local SettingsPanel = Instance.new("Frame", MainFrame)
-SettingsPanel.Name = "SettingsPanel"
-SettingsPanel.Size = TrainPanel.Size
-SettingsPanel.Position = TrainPanel.Position
-SettingsPanel.BackgroundTransparency = 0.13
-SettingsPanel.BackgroundColor3 = Color3.fromRGB(17, 15, 22)
-SettingsPanel.ZIndex = 12
-border(SettingsPanel)
-
-local SettingsTitle = Instance.new("TextLabel", SettingsPanel)
-SettingsTitle.Text = "Settings"
-SettingsTitle.Font = Enum.Font.GothamBold
-SettingsTitle.TextSize = 17
-SettingsTitle.TextColor3 = Color3.fromRGB(170, 80, 255)
-SettingsTitle.Position = UDim2.new(0, 12, 0, 4)
-SettingsTitle.Size = UDim2.new(1, -20, 0, 18)
-SettingsTitle.BackgroundTransparency = 1
-SettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
-SettingsTitle.ZIndex = 13
-
--- Switch Anti AFK
-local AntiAFKSwitch = makeSwitch(
-    SettingsPanel, 34, "Anti AFK",
-    function() return getgenv().XproD_AntiAFK end,
-    function(v) getgenv().XproD_AntiAFK = v end,
-    true -- black style
+makeSwitch(
+    TrainPanel, 134, "Train Sword",
+    function() return getgenv().XproD_TrainSword end,
+    function(v) getgenv().XproD_TrainSword = v end
+)
+makeSwitch(
+    TrainPanel, 184, "Auto Farm Bandit",
+    function() return getgenv().XproD_AutoFarmBandit end,
+    function(v) getgenv().XproD_AutoFarmBandit = v end
+)
+makeSwitch(
+    TrainPanel, 234, "Bring Bandits (Gather All Bandits)",
+    function() return getgenv().XproD_BringBandits end,
+    function(v) getgenv().XproD_BringBandits = v end
 )
 
-local AntiAFKStatus = Instance.new("TextLabel", SettingsPanel)
-AntiAFKStatus.Name = "AntiAFKStatus"
-AntiAFKStatus.Text = getgenv().XproD_AntiAFK and "Status: Active" or "Status: Inactive"
-AntiAFKStatus.Font = Enum.Font.Gotham
-AntiAFKStatus.TextSize = 17
-AntiAFKStatus.TextColor3 = Color3.fromRGB(0,255,255)
-AntiAFKStatus.Position = UDim2.new(0, 14, 0, 84)
-AntiAFKStatus.Size = UDim2.new(1, -28, 0, 32)
-AntiAFKStatus.BackgroundTransparency = 1
-AntiAFKStatus.TextXAlignment = Enum.TextXAlignment.Left
-AntiAFKStatus.ZIndex = 16
+-- PANEL DE CRÉDITOS MEJORADO
+-- ... (igual que tu script actual)
 
-local AntiAFKNote = Instance.new("TextLabel", SettingsPanel)
-AntiAFKNote.Text = "Prevents Roblox from kicking you for being AFK."
-AntiAFKNote.Font = Enum.Font.Gotham
-AntiAFKNote.TextSize = 14
-AntiAFKNote.TextColor3 = Color3.fromRGB(160, 255, 255)
-AntiAFKNote.Position = UDim2.new(0, 14, 0, 112)
-AntiAFKNote.Size = UDim2.new(1, -28, 0, 32)
-AntiAFKNote.BackgroundTransparency = 1
-AntiAFKNote.TextXAlignment = Enum.TextXAlignment.Left
-AntiAFKNote.ZIndex = 14
-
-SettingsPanel.Visible = false
+-- ANTI AFK PANEL (SETTINGS)
+-- ... (igual que tu script actual)
 
 -- PANEL SWITCHING LOGIC
-local function hideAll()
-    TrainPanel.Visible = false
-    CreditPanel.Visible = false
-    SettingsPanel.Visible = false
-    TrainingBtn.BackgroundTransparency = 1
-    TrainingBtn.TextColor3 = Color3.fromRGB(170,170,170)
-    CreditBtn.BackgroundTransparency = 1
-    CreditBtn.TextColor3 = Color3.fromRGB(170,170,170)
-    SettingsBtn.BackgroundTransparency = 1
-    SettingsBtn.TextColor3 = Color3.fromRGB(170,170,170)
-end
+-- ... (igual que tu script actual)
 
-TrainingBtn.MouseButton1Click:Connect(function()
-    hideAll()
-    TrainPanel.Visible = true
-    TrainingBtn.BackgroundTransparency = 0.07
-    TrainingBtn.TextColor3 = Color3.fromRGB(90,255,255)
-end)
-CreditBtn.MouseButton1Click:Connect(function()
-    hideAll()
-    CreditPanel.Visible = true
-    CreditBtn.BackgroundTransparency = 0.07
-    CreditBtn.TextColor3 = Color3.fromRGB(90,255,255)
-end)
-SettingsBtn.MouseButton1Click:Connect(function()
-    hideAll()
-    SettingsPanel.Visible = true
-    SettingsBtn.BackgroundTransparency = 0.07
-    SettingsBtn.TextColor3 = Color3.fromRGB(90,255,255)
-end)
-
--- FARMEOS (Speed versiÃ³n solicitada)
+-- FARMEOS (Speed)
 local speedFarmRunning = false
 local function speedFarmLoop()
     local humanoid = nil
@@ -393,7 +300,7 @@ local function speedFarmLoop()
     end
 end
 
--- FARMEOS (Agility versiÃ³n solicitada)
+-- FARMEOS (Agility)
 local agilityFarmRunning = false
 local function agilityFarmLoop()
     if agilityFarmRunning then return end
@@ -407,10 +314,87 @@ local function agilityFarmLoop()
     agilityFarmRunning = false
 end
 
+-- FARMEOS (Sword)
+local swordFarmRunning = false
+local function swordFarmLoop()
+    if swordFarmRunning then return end
+    swordFarmRunning = true
+    while getgenv().XproD_TrainSword do
+        pcall(function()
+            game:GetService("ReplicatedStorage").RemoteEvents.SwordTrainingEvent:FireServer(true)
+        end)
+        task.wait()
+    end
+    swordFarmRunning = false
+end
+
+-- FUNCIONES PARA AUTO FARM BANDIT AVANZADO
+local function tpToBandit(bandit)
+    if bandit and bandit:FindFirstChild("HumanoidRootPart") then
+        local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            hrp.CFrame = bandit.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
+        end
+    end
+end
+
+local function attackBandit(bandit)
+    while bandit and bandit.Parent and bandit:FindFirstChild("Humanoid") and bandit.Humanoid.Health > 0 and getgenv().XproD_AutoFarmBandit do
+        game:GetService("ReplicatedStorage").RemoteEvents.SwordTrainingEvent:FireServer(true)
+        task.wait(0.2)
+    end
+end
+
+local function getAllBandits()
+    local npcs = workspace.NPCs:GetChildren()
+    local bandits = {}
+    for _,npc in pairs(npcs) do
+        if npc.Name == "Bandit " and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health > 0 then
+            table.insert(bandits, npc)
+        end
+    end
+    return bandits
+end
+
+local function bringAllBanditsToMe()
+    local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    for _,bandit in pairs(getAllBandits()) do
+        if bandit:FindFirstChild("HumanoidRootPart") then
+            bandit.HumanoidRootPart.CFrame = hrp.CFrame + Vector3.new(math.random(-3,3),0,math.random(-3,3))
+        end
+    end
+end
+
+local banditFarmRunning = false
+local function autoFarmBanditLoop()
+    if banditFarmRunning then return end
+    banditFarmRunning = true
+    while getgenv().XproD_AutoFarmBandit do
+        if getgenv().XproD_BringBandits then
+            bringAllBanditsToMe()
+            task.wait(1)
+        end
+        local bandits = getAllBandits()
+        for _,bandit in ipairs(bandits) do
+            if not getgenv().XproD_AutoFarmBandit then break end
+            tpToBandit(bandit)
+            attackBandit(bandit)
+            task.wait(0.2)
+        end
+        task.wait(0.5)
+    end
+    banditFarmRunning = false
+end
+
+-- Lanzadores iniciales
 if getgenv().XproD_TrainSpeed then spawn(speedFarmLoop) end
 if getgenv().XproD_TrainAgility then spawn(agilityFarmLoop) end
+if getgenv().XproD_TrainSword then spawn(swordFarmLoop) end
+if getgenv().XproD_AutoFarmBandit then spawn(autoFarmBanditLoop) end
 
-local oldSpeed, oldAgility = false, false
+local oldSpeed, oldAgility, oldSword, oldBandit = false, false, false, false
+local oldBringBandits = false
 game:GetService("RunService").RenderStepped:Connect(function()
     if getgenv().XproD_TrainSpeed and not oldSpeed then
         oldSpeed = true
@@ -423,6 +407,18 @@ game:GetService("RunService").RenderStepped:Connect(function()
         spawn(agilityFarmLoop)
     elseif not getgenv().XproD_TrainAgility and oldAgility then
         oldAgility = false
+    end
+    if getgenv().XproD_TrainSword and not oldSword then
+        oldSword = true
+        spawn(swordFarmLoop)
+    elseif not getgenv().XproD_TrainSword and oldSword then
+        oldSword = false
+    end
+    if getgenv().XproD_AutoFarmBandit and not oldBandit then
+        oldBandit = true
+        spawn(autoFarmBanditLoop)
+    elseif not getgenv().XproD_AutoFarmBandit and oldBandit then
+        oldBandit = false
     end
 end)
 
@@ -447,7 +443,6 @@ local function disableAntiAFK()
 end
 
 -- On/Off logic for Anti AFK (live update)
-local lastAntiAFK = getgenv().XproD_AntiAFK
 spawn(function()
     while true do
         if getgenv().XproD_AntiAFK and not antiAfkConnection then
