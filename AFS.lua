@@ -1,5 +1,5 @@
--- XproD Hub | GUI profesional optimizada usando hotkey Button_4 para equipar sword como el HUD original
--- Usa VirtualInputManager para simular el click real en el botón y evitar errores de .Fire()/.Activate()
+-- XproD Hub | GUI profesional optimizada usando firesignal para equipar sword en el HUD original
+-- Si firesignal no está disponible, fallback a VirtualInputManager
 
 -- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
@@ -293,7 +293,7 @@ makeSwitch(
 )
 
 ----------------------
--- FUNCIONES: EQUIP SWORD Y FARM (usando Button_4 del HUD con VirtualInputManager)
+-- FUNCIONES: EQUIP SWORD Y FARM (firesignal preferente, fallback a VirtualInputManager)
 ----------------------
 
 function equipSwordHotkey()
@@ -301,15 +301,20 @@ function equipSwordHotkey()
     local mainGui = plr.PlayerGui:FindFirstChild("Main")
     if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
         local btn = mainGui.Hotkeys.Button_4
-        -- Usar VirtualInputManager para simular el click real
-        local vim = game:GetService("VirtualInputManager")
-        local absPos = btn.AbsolutePosition
-        local absSize = btn.AbsoluteSize
-        local x = absPos.X + absSize.X/2
-        local y = absPos.Y + absSize.Y/2
-        vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
-        vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
-        wait(0.1)
+        -- Preferente: firesignal (nativo Synapse/Script-Ware/Electron)
+        if typeof(firesignal) == "function" then
+            firesignal(btn.MouseButton1Click)
+        else
+            -- Fallback universal: VirtualInputManager
+            local vim = game:GetService("VirtualInputManager")
+            local absPos = btn.AbsolutePosition
+            local absSize = btn.AbsoluteSize
+            local x = absPos.X + absSize.X/2
+            local y = absPos.Y + absSize.Y/2
+            vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
+            vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
+        end
+        wait(0.15)
         return true
     end
     return false
