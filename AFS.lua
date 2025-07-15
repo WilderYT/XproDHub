@@ -280,50 +280,58 @@ makeSwitch(
 -- PANEL SWITCHING LOGIC
 -- ... (igual que tu script actual)
 
--- FARMEOS (Speed)
-local speedFarmRunning = false
-local function speedFarmLoop()
-    local humanoid = nil
+-- FARMEOS (Speed) -- igual que antes
+
+-- FARMEOS (Agility) -- igual que antes
+
+-- EQUIPAR LA ESPADA DE VERDAD (RemoteEvents correctos)
+local function equipSword()
+    pcall(function()
+        game:GetService("ReplicatedStorage").RemoteEvents.EquipSwordEvent:FireServer()
+        game:GetService("ReplicatedStorage").RemoteEvents.RequestEquipSword:FireServer()
+    end)
+end
+
+-- CHECAR SI LA ESPADA ESTÁ REALMENTE EQUIPADA
+local function isSwordEquipped()
     local player = game.Players.LocalPlayer
-    while getgenv().XproD_TrainSpeed do
-        humanoid = player.Character and player.Character:FindFirstChildWhichIsA("Humanoid")
-        if humanoid then
-            humanoid:Move(Vector3.new(0,0,1), true)
+    local wsChar = workspace:FindFirstChild(player.Name)
+    if wsChar and wsChar:FindFirstChild("EquippedSword") then
+        return true
+    end
+    return false
+end
+
+-- HACER LA ANIMACIÓN DE ATAQUE (SwordSlash)
+local function playSwordSlashAnimation()
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    if char and char:FindFirstChildOfClass("Humanoid") then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        local animObj = workspace.MouseIgnore:GetChildren()[11]
+        local anim = animObj and animObj:FindFirstChild("SwordSlash")
+        if anim then
+            local loadedAnim = humanoid:LoadAnimation(anim)
+            loadedAnim:Play()
         end
-        pcall(function()
-            game:GetService("ReplicatedStorage").RemoteEvents.SpeedTrainingEvent:FireServer(true)
-        end)
-        task.wait()
-    end
-    if humanoid then
-        humanoid:Move(Vector3.new(0,0,0), true)
     end
 end
 
--- FARMEOS (Agility)
-local agilityFarmRunning = false
-local function agilityFarmLoop()
-    if agilityFarmRunning then return end
-    agilityFarmRunning = true
-    while getgenv().XproD_TrainAgility do
-        pcall(function()
-            game:GetService("ReplicatedStorage").RemoteEvents.AgilityTrainingEvent:FireServer(true)
-        end)
-        task.wait()
-    end
-    agilityFarmRunning = false
-end
-
--- FARMEOS (Sword)
+-- FARMEOS (Sword usando SwordPopUpEvent)
 local swordFarmRunning = false
 local function swordFarmLoop()
     if swordFarmRunning then return end
     swordFarmRunning = true
     while getgenv().XproD_TrainSword do
-        pcall(function()
-            game:GetService("ReplicatedStorage").RemoteEvents.SwordTrainingEvent:FireServer(true)
-        end)
-        task.wait()
+        equipSword()
+        task.wait(0.18)
+        if isSwordEquipped() then
+            playSwordSlashAnimation()
+            pcall(function()
+                game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
+            end)
+        end
+        task.wait(0.25)
     end
     swordFarmRunning = false
 end
@@ -335,13 +343,6 @@ local function tpToBandit(bandit)
         if hrp then
             hrp.CFrame = bandit.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
         end
-    end
-end
-
-local function attackBandit(bandit)
-    while bandit and bandit.Parent and bandit:FindFirstChild("Humanoid") and bandit.Humanoid.Health > 0 and getgenv().XproD_AutoFarmBandit do
-        game:GetService("ReplicatedStorage").RemoteEvents.SwordTrainingEvent:FireServer(true)
-        task.wait(0.2)
     end
 end
 
@@ -366,6 +367,17 @@ local function bringAllBanditsToMe()
     end
 end
 
+-- ATAQUE REAL AL BANDIT (equipar, clickear, animar, farmear sword con SwordPopUpEvent)
+local function attackBandit(bandit)
+    equipSword()
+    task.wait(0.18)
+    if not isSwordEquipped() then return end
+    playSwordSlashAnimation()
+    pcall(function()
+        game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
+    end)
+end
+
 local banditFarmRunning = false
 local function autoFarmBanditLoop()
     if banditFarmRunning then return end
@@ -379,7 +391,10 @@ local function autoFarmBanditLoop()
         for _,bandit in ipairs(bandits) do
             if not getgenv().XproD_AutoFarmBandit then break end
             tpToBandit(bandit)
-            attackBandit(bandit)
+            while bandit and bandit.Parent and bandit:FindFirstChild("Humanoid") and bandit.Humanoid.Health > 0 and getgenv().XproD_AutoFarmBandit do
+                attackBandit(bandit)
+                task.wait(0.25)
+            end
             task.wait(0.2)
         end
         task.wait(0.5)
@@ -422,7 +437,7 @@ game:GetService("RunService").RenderStepped:Connect(function()
     end
 end)
 
--- ANTI AFK LOGIC
+-- ANTI AFK LOGIC -- igual que antes
 local antiAfkConnection
 local function enableAntiAFK()
     if antiAfkConnection then antiAfkConnection:Disconnect() end
