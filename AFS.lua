@@ -300,7 +300,7 @@ function equipSwordHotkey()
     local plr = game:GetService("Players").LocalPlayer
     local mainGui = plr.PlayerGui:FindFirstChild("Main")
     if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
-        mainGui.Hotkeys.Button_4:Activate()
+        mainGui.Hotkeys.Button_4.MouseButton1Click:Fire()
         wait(0.1)
         return true
     end
