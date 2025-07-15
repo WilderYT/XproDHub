@@ -1,5 +1,5 @@
--- XproD Hub | GUI profesional optimizada usando firesignal para equipar sword en el HUD original
--- Si firesignal no está disponible, fallback a VirtualInputManager
+-- XproD Hub | GUI profesional: solo equipa la sword una vez, y la reequipa automáticamente si se desequipa (por muerte, cambio, etc.)
+-- Usa firesignal para máxima compatibilidad, fallback a VirtualInputManager
 
 -- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
@@ -293,19 +293,36 @@ makeSwitch(
 )
 
 ----------------------
--- FUNCIONES: EQUIP SWORD Y FARM (firesignal preferente, fallback a VirtualInputManager)
+-- FUNCIONES: EQUIP SWORD SOLO UNA VEZ Y REEQUIPA AUTOMÁTICO SI SE DESEQUIPA
 ----------------------
 
-function equipSwordHotkey()
+-- Detectar si el jugador tiene la sword equipada (buscando Tool en el Backpack o Character)
+local function isSwordEquipped()
+    local plr = game:GetService("Players").LocalPlayer
+    local char = plr.Character
+    if not char then return false end
+    for _,v in pairs(char:GetChildren()) do
+        if v:IsA("Tool") and v.Name:lower():find("sword") then
+            return true
+        end
+    end
+    return false
+end
+
+local lastSwordCheck = 0
+
+function equipSwordHotkey(force)
     local plr = game:GetService("Players").LocalPlayer
     local mainGui = plr.PlayerGui:FindFirstChild("Main")
-    if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
+    if not mainGui or not mainGui:FindFirstChild("Hotkeys") or not mainGui.Hotkeys:FindFirstChild("Button_4") then
+        return false
+    end
+    -- Solo equipa si está desequipada o si forzamos (ej: al iniciar script)
+    if not isSwordEquipped() or force then
         local btn = mainGui.Hotkeys.Button_4
-        -- Preferente: firesignal (nativo Synapse/Script-Ware/Electron)
         if typeof(firesignal) == "function" then
             firesignal(btn.MouseButton1Click)
         else
-            -- Fallback universal: VirtualInputManager
             local vim = game:GetService("VirtualInputManager")
             local absPos = btn.AbsolutePosition
             local absSize = btn.AbsoluteSize
@@ -315,10 +332,25 @@ function equipSwordHotkey()
             vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
         end
         wait(0.15)
-        return true
+        -- Esperamos a que la sword se equipe
+        local t0 = tick()
+        while not isSwordEquipped() and tick() - t0 < 1 do wait(0.05) end
+        return isSwordEquipped()
     end
-    return false
+    return true
 end
+
+-- Monitor automático: Si se desequipa, reequipa
+spawn(function()
+    while true do
+        if getgenv().XproD_TrainSword or getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSpeed or getgenv().XproD_TrainAgility then
+            if not isSwordEquipped() then
+                equipSwordHotkey(true)
+            end
+        end
+        wait(1)
+    end
+end)
 
 local Remote = game:GetService("ReplicatedStorage").RemoteEvents
 
