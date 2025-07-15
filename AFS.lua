@@ -284,57 +284,44 @@ makeSwitch(
 
 -- FARMEOS (Agility) -- igual que antes
 
--- EQUIPAR LA ESPADA DE VERDAD (RemoteEvents correctos)
-local function equipSword()
+-- =============== ACTUALIZADO: EQUIPAR ESPADA Y TRAIN SWORD ===================
+local function equipSwordProperly()
     pcall(function()
         game:GetService("ReplicatedStorage").RemoteEvents.EquipSwordEvent:FireServer()
         game:GetService("ReplicatedStorage").RemoteEvents.RequestEquipSword:FireServer()
     end)
-end
-
--- CHECAR SI LA ESPADA ESTÁ REALMENTE EQUIPADA
-local function isSwordEquipped()
+    task.wait(0.2)
     local player = game.Players.LocalPlayer
-    local wsChar = workspace:FindFirstChild(player.Name)
-    if wsChar and wsChar:FindFirstChild("EquippedSword") then
-        return true
-    end
-    return false
-end
-
--- HACER LA ANIMACIÓN DE ATAQUE (SwordSlash)
-local function playSwordSlashAnimation()
-    local player = game.Players.LocalPlayer
-    local char = player.Character
-    if char and char:FindFirstChildOfClass("Humanoid") then
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        local animObj = workspace.MouseIgnore:GetChildren()[11]
-        local anim = animObj and animObj:FindFirstChild("SwordSlash")
-        if anim then
-            local loadedAnim = humanoid:LoadAnimation(anim)
-            loadedAnim:Play()
+    -- Cambia "sword" por el nombre real si tu espada se llama diferente
+    for _, tool in ipairs(player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name:lower():find("sword") then
+            tool.Parent = player.Character
+            break
         end
     end
 end
 
--- FARMEOS (Sword usando SwordPopUpEvent)
 local swordFarmRunning = false
 local function swordFarmLoop()
     if swordFarmRunning then return end
     swordFarmRunning = true
     while getgenv().XproD_TrainSword do
-        equipSword()
-        task.wait(0.18)
-        if isSwordEquipped() then
-            playSwordSlashAnimation()
-            pcall(function()
-                game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
-            end)
+        equipSwordProperly()
+        local player = game.Players.LocalPlayer
+        if player.Character then
+            local sword = player.Character:FindFirstChildWhichIsA("Tool")
+            if sword then
+                sword:Activate()
+                pcall(function()
+                    game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
+                end)
+            end
         end
         task.wait(0.25)
     end
     swordFarmRunning = false
 end
+-- =================== FIN ACTUALIZADO TRAIN SWORD ============================
 
 -- FUNCIONES PARA AUTO FARM BANDIT AVANZADO
 local function tpToBandit(bandit)
@@ -367,16 +354,21 @@ local function bringAllBanditsToMe()
     end
 end
 
--- ATAQUE REAL AL BANDIT (equipar, clickear, animar, farmear sword con SwordPopUpEvent)
+-- =============== ACTUALIZADO: ATAQUE BANDIT ===================
 local function attackBandit(bandit)
-    equipSword()
-    task.wait(0.18)
-    if not isSwordEquipped() then return end
-    playSwordSlashAnimation()
-    pcall(function()
-        game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
-    end)
+    equipSwordProperly()
+    local player = game.Players.LocalPlayer
+    if player.Character then
+        local sword = player.Character:FindFirstChildWhichIsA("Tool")
+        if sword then
+            sword:Activate()
+            pcall(function()
+                game:GetService("ReplicatedStorage").RemoteEvents.SwordPopUpEvent:FireServer()
+            end)
+        end
+    end
 end
+-- =================== FIN ACTUALIZADO ATAQUE BANDIT ============================
 
 local banditFarmRunning = false
 local function autoFarmBanditLoop()
