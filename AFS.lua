@@ -1,4 +1,4 @@
--- XproD Hub | GUI profesional: equipa la sword SOLO cuando está desequipada (no spamea), y la reequipa si la pierdes/mueres.
+-- XproD Hub | GUI profesional: Solo equipa la sword si está desequipada, nunca spamea, ni alterna. Reequipa si mueres.
 -- Soporta firesignal y fallback a VirtualInputManager.
 
 -- GLOBALS
@@ -293,10 +293,9 @@ makeSwitch(
 )
 
 ----------------------
--- FUNCIONES: EQUIP SWORD SOLO SI ESTÁ DESEQUIPADA (¡anti-spam!)
+-- FUNCIONES: EQUIP SWORD SOLO SI ESTÁ DESEQUIPADA (¡anti-spam y anti-toggle!)
 ----------------------
 
--- Detecta si tienes la sword equipada
 local function isSwordEquipped()
     local plr = game:GetService("Players").LocalPlayer
     local char = plr.Character
@@ -309,38 +308,35 @@ local function isSwordEquipped()
     return false
 end
 
--- SOLO intenta equipar la sword si está desequipada
-function equipSwordIfNeeded()
-    if not isSwordEquipped() then
-        local plr = game:GetService("Players").LocalPlayer
-        local mainGui = plr.PlayerGui:FindFirstChild("Main")
-        if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
-            local btn = mainGui.Hotkeys.Button_4
-            if typeof(firesignal) == "function" then
-                firesignal(btn.MouseButton1Click)
-            else
-                local vim = game:GetService("VirtualInputManager")
-                local absPos = btn.AbsolutePosition
-                local absSize = btn.AbsoluteSize
-                local x = absPos.X + absSize.X/2
-                local y = absPos.Y + absSize.Y/2
-                vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
-                vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
-            end
-            -- Espera hasta que la sword esté equipada o pasen 2 segundos máximo
-            local t0 = tick()
-            while not isSwordEquipped() and tick() - t0 < 2 do wait(0.05) end
-        end
-    end
-end
-
--- Monitor eficiente: SOLO reintenta si detecta que está desequipada (NUNCA spamea)
+-- Monitor: solo pulsa el botón si NO está equipada, y espera a que se equipe antes de volver a intentarlo
 spawn(function()
     while true do
-        if getgenv().XproD_TrainSword or getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSpeed or getgenv().XproD_TrainAgility then
-            equipSwordIfNeeded()
+        local shouldAuto = getgenv().XproD_TrainSword or getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSpeed or getgenv().XproD_TrainAgility
+        if shouldAuto then
+            if not isSwordEquipped() then
+                -- Pulsa el botón solo UNA VEZ
+                local plr = game:GetService("Players").LocalPlayer
+                local mainGui = plr.PlayerGui:FindFirstChild("Main")
+                if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
+                    local btn = mainGui.Hotkeys.Button_4
+                    if typeof(firesignal) == "function" then
+                        firesignal(btn.MouseButton1Click)
+                    else
+                        local vim = game:GetService("VirtualInputManager")
+                        local absPos = btn.AbsolutePosition
+                        local absSize = btn.AbsoluteSize
+                        local x = absPos.X + absSize.X/2
+                        local y = absPos.Y + absSize.Y/2
+                        vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
+                        vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
+                    end
+                    -- Espera hasta que esté equipada O máximo 1.5 segundos antes de volver a intentar
+                    local t0 = tick()
+                    while not isSwordEquipped() and tick() - t0 < 1.5 do wait(0.05) end
+                end
+            end
         end
-        wait(0.8)  -- Ajusta el tiempo si quieres que sea más o menos reactivo
+        wait(0.8)
     end
 end)
 
@@ -358,7 +354,6 @@ end
 
 local function speedFarmLoop()
     while getgenv().XproD_TrainSpeed do
-        -- Ya NO es necesario equipar la sword aquí, el monitor la equipa solo si es necesario.
         wait(0.3)
     end
 end
