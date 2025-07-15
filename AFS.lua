@@ -1,6 +1,6 @@
--- XproD Hub | GUI profesional con Sword Selector integrado en Training y AutoFarm Bandit
+-- XproD Hub | GUI profesional mejorada con Sword Selector scrollable real y equip funcional
 
--- GLOBALS EXTENDIDAS
+-- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
 getgenv().XproD_TrainAgility = getgenv().XproD_TrainAgility or false
 getgenv().XproD_TrainSword = getgenv().XproD_TrainSword or false
@@ -9,6 +9,7 @@ getgenv().XproD_BringBandits = getgenv().XproD_BringBandits or false
 getgenv().XproD_AntiAFK = getgenv().XproD_AntiAFK or false
 getgenv().XproD_SelectedSword = getgenv().XproD_SelectedSword or nil
 
+-- Limpia si ya existe
 pcall(function() game.CoreGui.XproD_Hub:Destroy() end)
 local uis = game:GetService("UserInputService")
 local gui = Instance.new("ScreenGui")
@@ -17,7 +18,7 @@ gui.Parent = game:GetService("CoreGui")
 gui.ResetOnSpawn = false
 
 ----------------------
--- ÍCONO VISUAL (igual)
+-- ÍCONO VISUAL
 ----------------------
 local IconBtn = Instance.new("ImageButton", gui)
 IconBtn.Name = "OpenCloseIcon"
@@ -57,7 +58,7 @@ end)
 ----------------------
 local MainFrame = Instance.new("Frame", gui)
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 540, 0, 360)
+MainFrame.Size = UDim2.new(0, 540, 0, 410)
 MainFrame.Position = UDim2.new(0, IconBtn.Position.X.Offset + 60, 0, IconBtn.Position.Y.Offset - 50)
 MainFrame.BackgroundTransparency = 0.12
 MainFrame.BackgroundColor3 = Color3.fromRGB(24, 22, 32)
@@ -188,7 +189,7 @@ TrainTitle.TextXAlignment = Enum.TextXAlignment.Left
 TrainTitle.ZIndex = 13
 
 ----------------------
--- SWORD SELECTOR UI
+-- SWORD SELECTOR UI (scrollable y funcional)
 ----------------------
 local player = game:GetService("Players").LocalPlayer
 local swordGui = player.PlayerGui:WaitForChild("Main")
@@ -222,14 +223,18 @@ dropDown.BorderSizePixel = 0
 dropDown.AutoButtonColor = true
 dropDown.ZIndex = 40
 
-local swordMenu = Instance.new("Frame", dropDown)
+local swordMenu = Instance.new("ScrollingFrame", dropDown)
 swordMenu.Name = "SwordMenu"
 swordMenu.Visible = false
 swordMenu.Position = UDim2.new(0, 0, 1, 0)
-swordMenu.Size = UDim2.new(1, 0, 0, math.max(32, #swordList * 28))
+swordMenu.Size = UDim2.new(1, 0, 0, 140)
+swordMenu.CanvasSize = UDim2.new(0, 0, 0, #swordList * 28)
+swordMenu.ScrollBarThickness = 6
 swordMenu.BackgroundColor3 = Color3.fromRGB(24, 22, 32)
 swordMenu.BorderSizePixel = 1
 swordMenu.ZIndex = 41
+swordMenu.AutomaticCanvasSize = Enum.AutomaticSize.None
+swordMenu.ClipsDescendants = true
 
 for i, swordName in ipairs(swordList) do
     local btn = Instance.new("TextButton", swordMenu)
@@ -253,13 +258,29 @@ dropDown.MouseButton1Click:Connect(function()
     swordMenu.Visible = not swordMenu.Visible
 end)
 
+-- Busca el botón de abrir panel swords
+local function openSwordPanel()
+    local main = player.PlayerGui:FindFirstChild("Main")
+    if not main then return end
+    local btns = main.Category.Frames:FindFirstChild("Buttons")
+    if btns and btns:FindFirstChild("Swords") and btns.Swords:IsA("TextButton") then
+        btns.Swords.MouseButton1Click:Fire()
+        wait(0.2)
+    end
+end
+
 function equipSelectedSword()
+    openSwordPanel()
+    local main = player.PlayerGui:FindFirstChild("Main")
+    if not main then return false end
+    local swordsFrame = main.Category.Frames.Swords.Container
     local swordName = getgenv().XproD_SelectedSword
     for _, frame in ipairs(swordsFrame:GetChildren()) do
         if frame.Name:find("Frame_Sword") then
             for _, sword in ipairs(frame:GetChildren()) do
                 if sword.Name == swordName and sword:FindFirstChild("Equip") and sword.Equip:IsA("TextButton") then
-                    sword.Equip:Activate()
+                    sword.Equip.MouseButton1Click:Fire()
+                    wait(0.15)
                     return true
                 end
             end
@@ -374,12 +395,10 @@ local function attackWithSword()
     Remote.SwordPopUpEvent:FireServer()
 end
 
--- Train Speed y Agility: Aquí pon tu lógica anterior, si aplica
 local function speedFarmLoop()
     while getgenv().XproD_TrainSpeed do
         equipSelectedSword()
-        -- Aquí pon tu remote de speed si existe, o el default de sword si aplica
-        -- Por ejemplo:
+        -- Pon aquí el remote de Speed si aplica, si no, borra la línea siguiente:
         -- Remote.SpeedTrainingEvent:FireServer()
         wait(0.3)
     end
@@ -388,8 +407,7 @@ end
 local function agilityFarmLoop()
     while getgenv().XproD_TrainAgility do
         equipSelectedSword()
-        -- Aquí pon tu remote de agility si existe, o el default de sword si aplica
-        -- Por ejemplo:
+        -- Pon aquí el remote de Agility si aplica, si no, borra la línea siguiente:
         -- Remote.AgilityTrainingEvent:FireServer()
         wait(0.3)
     end
@@ -468,7 +486,5 @@ end)
 
 ----------------------
 -- ANTI AFK LOGIC Y CRÉDITOS
--- (Igual que antes)
+-- (Puedes añadir tus paneles y lógica de anti-AFK aquí)
 ----------------------
-
--- Puedes copiar tu bloque de anti AFK y créditos aquí si lo necesitas.
