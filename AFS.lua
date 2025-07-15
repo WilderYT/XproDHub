@@ -1,4 +1,4 @@
--- XproD Hub | GUI profesional mejorada con Sword Selector scrollable real y equip funcional
+-- XproD Hub | GUI profesional optimizada usando hotkey Button_4 para equipar sword como el HUD original
 
 -- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
@@ -7,9 +7,7 @@ getgenv().XproD_TrainSword = getgenv().XproD_TrainSword or false
 getgenv().XproD_AutoFarmBandit = getgenv().XproD_AutoFarmBandit or false
 getgenv().XproD_BringBandits = getgenv().XproD_BringBandits or false
 getgenv().XproD_AntiAFK = getgenv().XproD_AntiAFK or false
-getgenv().XproD_SelectedSword = getgenv().XproD_SelectedSword or nil
 
--- Limpia si ya existe
 pcall(function() game.CoreGui.XproD_Hub:Destroy() end)
 local uis = game:GetService("UserInputService")
 local gui = Instance.new("ScreenGui")
@@ -189,105 +187,20 @@ TrainTitle.TextXAlignment = Enum.TextXAlignment.Left
 TrainTitle.ZIndex = 13
 
 ----------------------
--- SWORD SELECTOR UI (scrollable y funcional)
+-- AVISO SWORD: El farm usará la sword que tengas actualmente equipada en tu hotbar/hud
 ----------------------
-local player = game:GetService("Players").LocalPlayer
-local swordGui = player.PlayerGui:WaitForChild("Main")
-local swordsFrame = swordGui.Category.Frames.Swords.Container
-
-local swordList = {}
-for _, frame in ipairs(swordsFrame:GetChildren()) do
-    if frame.Name:find("Frame_Sword") then
-        for _, sword in ipairs(frame:GetChildren()) do
-            if sword:FindFirstChild("Equip") and sword.Equip:IsA("TextButton") then
-                table.insert(swordList, sword.Name)
-            end
-        end
-    end
-end
-if not table.find(swordList, getgenv().XproD_SelectedSword) then
-    getgenv().XproD_SelectedSword = swordList[1] or "Katana"
-end
-
-local dropDown = Instance.new("TextButton", TrainPanel)
-dropDown.Name = "SwordDropdown"
-dropDown.Size = UDim2.new(0, 180, 0, 32)
-dropDown.Position = UDim2.new(0, 16, 0, 285)
-dropDown.BackgroundColor3 = Color3.fromRGB(34, 28, 44)
-dropDown.Text = "Espada: " .. getgenv().XproD_SelectedSword
-dropDown.Font = Enum.Font.Gotham
-dropDown.TextSize = 16
-dropDown.TextColor3 = Color3.fromRGB(190, 255, 255)
-dropDown.TextXAlignment = Enum.TextXAlignment.Left
-dropDown.BorderSizePixel = 0
-dropDown.AutoButtonColor = true
-dropDown.ZIndex = 40
-
-local swordMenu = Instance.new("ScrollingFrame", dropDown)
-swordMenu.Name = "SwordMenu"
-swordMenu.Visible = false
-swordMenu.Position = UDim2.new(0, 0, 1, 0)
-swordMenu.Size = UDim2.new(1, 0, 0, 140)
-swordMenu.CanvasSize = UDim2.new(0, 0, 0, #swordList * 28)
-swordMenu.ScrollBarThickness = 6
-swordMenu.BackgroundColor3 = Color3.fromRGB(24, 22, 32)
-swordMenu.BorderSizePixel = 1
-swordMenu.ZIndex = 41
-swordMenu.AutomaticCanvasSize = Enum.AutomaticSize.None
-swordMenu.ClipsDescendants = true
-
-for i, swordName in ipairs(swordList) do
-    local btn = Instance.new("TextButton", swordMenu)
-    btn.Size = UDim2.new(1, 0, 0, 28)
-    btn.Position = UDim2.new(0, 0, 0, (i-1)*28)
-    btn.Text = swordName
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 15
-    btn.BackgroundColor3 = Color3.fromRGB(34, 28, 44)
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.ZIndex = 42
-    btn.AutoButtonColor = true
-    btn.MouseButton1Click:Connect(function()
-        getgenv().XproD_SelectedSword = swordName
-        dropDown.Text = "Espada: " .. swordName
-        swordMenu.Visible = false
-    end)
-end
-
-dropDown.MouseButton1Click:Connect(function()
-    swordMenu.Visible = not swordMenu.Visible
-end)
-
--- Busca el botón de abrir panel swords
-local function openSwordPanel()
-    local main = player.PlayerGui:FindFirstChild("Main")
-    if not main then return end
-    local btns = main.Category.Frames:FindFirstChild("Buttons")
-    if btns and btns:FindFirstChild("Swords") and btns.Swords:IsA("TextButton") then
-        btns.Swords.MouseButton1Click:Fire()
-        wait(0.2)
-    end
-end
-
-function equipSelectedSword()
-    openSwordPanel()
-    local main = player.PlayerGui:FindFirstChild("Main")
-    if not main then return false end
-    local swordsFrame = main.Category.Frames.Swords.Container
-    local swordName = getgenv().XproD_SelectedSword
-    for _, frame in ipairs(swordsFrame:GetChildren()) do
-        if frame.Name:find("Frame_Sword") then
-            for _, sword in ipairs(frame:GetChildren()) do
-                if sword.Name == swordName and sword:FindFirstChild("Equip") and sword.Equip:IsA("TextButton") then
-                    sword.Equip.MouseButton1Click:Fire()
-                    wait(0.15)
-                    return true
-                end
-            end
-        end
-    end
-    return false
-end
+local SwordInfo = Instance.new("TextLabel", TrainPanel)
+SwordInfo.Text = "⚔️ El farmeo usará la espada equipada en tu HUD (botón inferior central).\n"..
+"Si quieres cambiarla, hazlo manualmente una vez en el menú Swords."
+SwordInfo.Font = Enum.Font.Gotham
+SwordInfo.TextSize = 15
+SwordInfo.TextColor3 = Color3.fromRGB(185, 225, 255)
+SwordInfo.BackgroundTransparency = 1
+SwordInfo.Position = UDim2.new(0, 18, 0, 285)
+SwordInfo.Size = UDim2.new(1, -36, 0, 40)
+SwordInfo.TextWrapped = true
+SwordInfo.TextYAlignment = Enum.TextYAlignment.Top
+SwordInfo.ZIndex = 14
 
 ----------------------
 -- SWITCHES
@@ -379,36 +292,47 @@ makeSwitch(
 )
 
 ----------------------
--- FUNCIONES SWORD Y FARM
+-- FUNCIONES: EQUIP SWORD Y FARM (usando Button_4 del HUD)
 ----------------------
+
+-- Equipa la sword actual (la que tengas seleccionada en tu HUD, botón central inferior)
+function equipSwordHotkey()
+    local plr = game:GetService("Players").LocalPlayer
+    local mainGui = plr.PlayerGui:FindFirstChild("Main")
+    if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
+        mainGui.Hotkeys.Button_4:Activate()
+        wait(0.1)
+        return true
+    end
+    return false
+end
+
 local Remote = game:GetService("ReplicatedStorage").RemoteEvents
 
 local function trainSword()
-    equipSelectedSword()
+    equipSwordHotkey()
     Remote.SwordTrainingEvent:FireServer()
     Remote.SwordPopUpEvent:FireServer()
 end
 
 local function attackWithSword()
-    equipSelectedSword()
+    equipSwordHotkey()
     Remote.SwordAttackEvent:FireServer()
     Remote.SwordPopUpEvent:FireServer()
 end
 
 local function speedFarmLoop()
     while getgenv().XproD_TrainSpeed do
-        equipSelectedSword()
-        -- Pon aquí el remote de Speed si aplica, si no, borra la línea siguiente:
-        -- Remote.SpeedTrainingEvent:FireServer()
+        equipSwordHotkey()
+        -- Si tienes un remote para Speed ponlo aquí.
         wait(0.3)
     end
 end
 
 local function agilityFarmLoop()
     while getgenv().XproD_TrainAgility do
-        equipSelectedSword()
-        -- Pon aquí el remote de Agility si aplica, si no, borra la línea siguiente:
-        -- Remote.AgilityTrainingEvent:FireServer()
+        equipSwordHotkey()
+        -- Si tienes un remote para Agility ponlo aquí.
         wait(0.3)
     end
 end
