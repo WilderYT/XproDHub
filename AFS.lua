@@ -1,5 +1,5 @@
--- XproD Hub | GUI profesional: solo equipa la sword una vez, y la reequipa automáticamente si se desequipa (por muerte, cambio, etc.)
--- Usa firesignal para máxima compatibilidad, fallback a VirtualInputManager
+-- XproD Hub | GUI profesional: equipa la sword SOLO cuando está desequipada (no spamea), y la reequipa si la pierdes/mueres.
+-- Soporta firesignal y fallback a VirtualInputManager.
 
 -- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
@@ -293,10 +293,10 @@ makeSwitch(
 )
 
 ----------------------
--- FUNCIONES: EQUIP SWORD SOLO UNA VEZ Y REEQUIPA AUTOMÁTICO SI SE DESEQUIPA
+-- FUNCIONES: EQUIP SWORD SOLO SI ESTÁ DESEQUIPADA (¡anti-spam!)
 ----------------------
 
--- Detectar si el jugador tiene la sword equipada (buscando Tool en el Backpack o Character)
+-- Detecta si tienes la sword equipada
 local function isSwordEquipped()
     local plr = game:GetService("Players").LocalPlayer
     local char = plr.Character
@@ -309,75 +309,62 @@ local function isSwordEquipped()
     return false
 end
 
-local lastSwordCheck = 0
-
-function equipSwordHotkey(force)
-    local plr = game:GetService("Players").LocalPlayer
-    local mainGui = plr.PlayerGui:FindFirstChild("Main")
-    if not mainGui or not mainGui:FindFirstChild("Hotkeys") or not mainGui.Hotkeys:FindFirstChild("Button_4") then
-        return false
-    end
-    -- Solo equipa si está desequipada o si forzamos (ej: al iniciar script)
-    if not isSwordEquipped() or force then
-        local btn = mainGui.Hotkeys.Button_4
-        if typeof(firesignal) == "function" then
-            firesignal(btn.MouseButton1Click)
-        else
-            local vim = game:GetService("VirtualInputManager")
-            local absPos = btn.AbsolutePosition
-            local absSize = btn.AbsoluteSize
-            local x = absPos.X + absSize.X/2
-            local y = absPos.Y + absSize.Y/2
-            vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
-            vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
+-- SOLO intenta equipar la sword si está desequipada
+function equipSwordIfNeeded()
+    if not isSwordEquipped() then
+        local plr = game:GetService("Players").LocalPlayer
+        local mainGui = plr.PlayerGui:FindFirstChild("Main")
+        if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
+            local btn = mainGui.Hotkeys.Button_4
+            if typeof(firesignal) == "function" then
+                firesignal(btn.MouseButton1Click)
+            else
+                local vim = game:GetService("VirtualInputManager")
+                local absPos = btn.AbsolutePosition
+                local absSize = btn.AbsoluteSize
+                local x = absPos.X + absSize.X/2
+                local y = absPos.Y + absSize.Y/2
+                vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
+                vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
+            end
+            -- Espera hasta que la sword esté equipada o pasen 2 segundos máximo
+            local t0 = tick()
+            while not isSwordEquipped() and tick() - t0 < 2 do wait(0.05) end
         end
-        wait(0.15)
-        -- Esperamos a que la sword se equipe
-        local t0 = tick()
-        while not isSwordEquipped() and tick() - t0 < 1 do wait(0.05) end
-        return isSwordEquipped()
     end
-    return true
 end
 
--- Monitor automático: Si se desequipa, reequipa
+-- Monitor eficiente: SOLO reintenta si detecta que está desequipada (NUNCA spamea)
 spawn(function()
     while true do
         if getgenv().XproD_TrainSword or getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSpeed or getgenv().XproD_TrainAgility then
-            if not isSwordEquipped() then
-                equipSwordHotkey(true)
-            end
+            equipSwordIfNeeded()
         end
-        wait(1)
+        wait(0.8)  -- Ajusta el tiempo si quieres que sea más o menos reactivo
     end
 end)
 
 local Remote = game:GetService("ReplicatedStorage").RemoteEvents
 
 local function trainSword()
-    equipSwordHotkey()
     Remote.SwordTrainingEvent:FireServer()
     Remote.SwordPopUpEvent:FireServer()
 end
 
 local function attackWithSword()
-    equipSwordHotkey()
     Remote.SwordAttackEvent:FireServer()
     Remote.SwordPopUpEvent:FireServer()
 end
 
 local function speedFarmLoop()
     while getgenv().XproD_TrainSpeed do
-        equipSwordHotkey()
-        -- Si tienes un remote para Speed ponlo aquí.
+        -- Ya NO es necesario equipar la sword aquí, el monitor la equipa solo si es necesario.
         wait(0.3)
     end
 end
 
 local function agilityFarmLoop()
     while getgenv().XproD_TrainAgility do
-        equipSwordHotkey()
-        -- Si tienes un remote para Agility ponlo aquí.
         wait(0.3)
     end
 end
