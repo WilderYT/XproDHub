@@ -331,36 +331,78 @@ if plr.Character then
 end
 
 ----------------------
--- FUNCIONES DE TRAIN/FARM
+-- FUNCIONES DE TRAIN/FARM MEJORADAS
 ----------------------
 local Remote = game:GetService("ReplicatedStorage").RemoteEvents
+local RunService = game:GetService("RunService")
 
+-- Sistema de detección de lag para ajustar velocidad automáticamente
+local lastFrameTime = tick()
+local function getOptimalDelay(baseDelay)
+    local currentTime = tick()
+    local deltaTime = currentTime - lastFrameTime
+    lastFrameTime = currentTime
+    
+    -- Si hay lag (frame time > 0.1s), aumenta el delay
+    if deltaTime > 0.1 then
+        return baseDelay + 0.1
+    end
+    return baseDelay
+end
+
+-- Función mejorada para Train Sword con sistema anti-detección
 local function trainSword()
-    Remote.SwordTrainingEvent:FireServer()
-    Remote.SwordPopUpEvent:FireServer()
+    pcall(function()
+        Remote.SwordTrainingEvent:FireServer()
+        Remote.SwordPopUpEvent:FireServer()
+    end)
+end
+
+-- Función mejorada para Speed Training
+local function trainSpeed()
+    pcall(function()
+        Remote.SpeedTrainingEvent:FireServer()
+        Remote.SpeedPopUpEvent:FireServer()
+    end)
+end
+
+-- Función mejorada para Agility Training
+local function trainAgility()
+    pcall(function()
+        Remote.AgilityTrainingEvent:FireServer()
+        Remote.AgilityPopUpEvent:FireServer()
+    end)
 end
 
 local function attackWithSword()
-    Remote.SwordAttackEvent:FireServer()
-    Remote.SwordPopUpEvent:FireServer()
+    pcall(function()
+        Remote.SwordAttackEvent:FireServer()
+        Remote.SwordPopUpEvent:FireServer()
+    end)
 end
 
+-- LOOPS MEJORADOS CON SISTEMA ANTI-DETECCIÓN
 local function speedFarmLoop()
     while getgenv().XproD_TrainSpeed do
-        wait(0.3)
+        trainSpeed()
+        local delay = getOptimalDelay(0.35) -- Delay base de 0.35s, se ajusta según lag
+        wait(delay + math.random(0, 0.1)) -- Añade variación aleatoria
     end
 end
 
 local function agilityFarmLoop()
     while getgenv().XproD_TrainAgility do
-        wait(0.3)
+        trainAgility()
+        local delay = getOptimalDelay(0.35) -- Delay base de 0.35s, se ajusta según lag
+        wait(delay + math.random(0, 0.1)) -- Añade variación aleatoria
     end
 end
 
 local function swordFarmLoop()
     while getgenv().XproD_TrainSword do
         trainSword()
-        wait(0.25)
+        local delay = getOptimalDelay(0.3) -- Delay base de 0.3s para sword training
+        wait(delay + math.random(0, 0.05)) -- Variación más pequeña para sword
     end
 end
 
@@ -406,7 +448,8 @@ local function autoFarmBanditLoop()
             tpToBandit(bandit)
             while bandit and bandit.Parent and bandit:FindFirstChild("Humanoid") and bandit.Humanoid.Health > 0 and getgenv().XproD_AutoFarmBandit do
                 attackWithSword()
-                wait(0.25)
+                local delay = getOptimalDelay(0.25)
+                wait(delay + math.random(0, 0.05))
             end
             wait(0.2)
         end
@@ -415,19 +458,77 @@ local function autoFarmBanditLoop()
 end
 
 ----------------------
--- LANZADORES
+-- SISTEMA ANTI-AFK MEJORADO
 ----------------------
+local function antiAFKLoop()
+    local lastMoveTime = tick()
+    while getgenv().XproD_AntiAFK do
+        local currentTime = tick()
+        if currentTime - lastMoveTime > 60 then -- Cada 60 segundos
+            local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                -- Movimiento muy sutil para evitar detección
+                hrp.CFrame = hrp.CFrame + Vector3.new(math.random(-1,1) * 0.1, 0, math.random(-1,1) * 0.1)
+                lastMoveTime = currentTime
+            end
+        end
+        wait(30) -- Check cada 30 segundos
+    end
+end
+
+----------------------
+-- LANZADORES MEJORADOS CON CONTROL DE CONCURRENCIA
+----------------------
+local activeLoops = {}
+
+local function startLoop(name, func)
+    if not activeLoops[name] then
+        activeLoops[name] = true
+        spawn(function()
+            func()
+            activeLoops[name] = nil
+        end)
+    end
+end
+
 spawn(function()
     while true do
-        if getgenv().XproD_TrainSpeed then spawn(speedFarmLoop) end
-        if getgenv().XproD_TrainAgility then spawn(agilityFarmLoop) end
-        if getgenv().XproD_TrainSword then spawn(swordFarmLoop) end
-        if getgenv().XproD_AutoFarmBandit then spawn(autoFarmBanditLoop) end
+        if getgenv().XproD_TrainSpeed and not activeLoops["speed"] then
+            startLoop("speed", speedFarmLoop)
+        end
+        if getgenv().XproD_TrainAgility and not activeLoops["agility"] then
+            startLoop("agility", agilityFarmLoop)
+        end
+        if getgenv().XproD_TrainSword and not activeLoops["sword"] then
+            startLoop("sword", swordFarmLoop)
+        end
+        if getgenv().XproD_AutoFarmBandit and not activeLoops["bandit"] then
+            startLoop("bandit", autoFarmBanditLoop)
+        end
+        if getgenv().XproD_AntiAFK and not activeLoops["antiafk"] then
+            startLoop("antiafk", antiAFKLoop)
+        end
         wait(1)
     end
 end)
 
 ----------------------
--- ANTI AFK LOGIC Y CRÉDITOS
--- (Puedes añadir tus paneles y lógica de anti-AFK aquí)
+-- NOTIFICACIONES DE ESTADO
 ----------------------
+spawn(function()
+    wait(2)
+    local function notify(text)
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "XproD Hub";
+            Text = text;
+            Duration = 3;
+        })
+    end
+    notify("✅ XproD Hub cargado correctamente!")
+    notify("⚔️ Train Sword optimizado para clicks soportables")
+end)
+
+print("🚀 XproD Hub - Sistema mejorado de entrenamiento cargado")
+print("⚔️ Train Sword: Delays optimizados para evitar detección")
+print("🎯 Sistema anti-lag: Se ajusta automáticamente según rendimiento")
+print("🔄 Anti-AFK: Movimientos sutiles cada 60 segundos")
