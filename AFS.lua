@@ -1,6 +1,6 @@
--- XproD Hub | GUI Completa con Scrolling y Arrastre v2.2
--- UI moderna con scroll funcional, ícono y UI completamente movibles
--- Solo equipa la sword tras respawn/muerte si tienes activado autofarm
+-- XproD Hub | Complete GUI with Scrolling and Dragging v2.2
+-- Modern UI with functional scroll, completely movable icon and UI
+-- Equips sword immediately when activating autofarm or sword training
 
 -- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
@@ -19,7 +19,7 @@ gui.Name = "XproD_Hub"
 gui.Parent = game:GetService("CoreGui")
 gui.ResetOnSpawn = false
 
--- Configuración de animaciones
+-- Animation configuration
 local function simpleTween(obj, time, props)
     local tween = TweenService:Create(obj, TweenInfo.new(time, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), props)
     tween:Play()
@@ -27,7 +27,7 @@ local function simpleTween(obj, time, props)
 end
 
 ----------------------
--- ÍCONO COMPLETAMENTE MOVIBLE
+-- COMPLETELY MOVABLE ICON
 ----------------------
 local IconFrame = Instance.new("Frame", gui)
 IconFrame.Name = "IconFrame"
@@ -37,11 +37,11 @@ IconFrame.BackgroundColor3 = Color3.fromRGB(138, 43, 226)
 IconFrame.BorderSizePixel = 0
 IconFrame.ZIndex = 50
 
--- Esquinas redondeadas
+-- Rounded corners
 local IconCorner = Instance.new("UICorner", IconFrame)
 IconCorner.CornerRadius = UDim.new(0, 15)
 
--- Gradiente
+-- Gradient
 local IconGradient = Instance.new("UIGradient", IconFrame)
 IconGradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(138, 43, 226)),
@@ -55,7 +55,7 @@ IconStroke.Color = Color3.fromRGB(255, 255, 255)
 IconStroke.Thickness = 2
 IconStroke.Transparency = 0.6
 
--- Botón para clicks y arrastre
+-- Button for clicks and dragging
 local IconBtn = Instance.new("TextButton", IconFrame)
 IconBtn.Size = UDim2.new(1, 0, 1, 0)
 IconBtn.Position = UDim2.new(0, 0, 0, 0)
@@ -66,7 +66,7 @@ IconBtn.TextSize = 24
 IconBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 IconBtn.ZIndex = 51
 
--- Efectos hover
+-- Hover effects
 IconBtn.MouseEnter:Connect(function()
     simpleTween(IconFrame, 0.2, {Size = UDim2.new(0, 65, 0, 65)})
     simpleTween(IconStroke, 0.2, {Transparency = 0.3})
@@ -77,7 +77,7 @@ IconBtn.MouseLeave:Connect(function()
     simpleTween(IconStroke, 0.2, {Transparency = 0.6})
 end)
 
--- Sistema de arrastre MEJORADO para el ícono
+-- IMPROVED drag system for the icon
 local iconDragging = false
 local iconDragStart = nil
 local iconStartPos = nil
@@ -104,7 +104,7 @@ uis.InputChanged:Connect(function(input)
 end)
 
 ----------------------
--- FRAME PRINCIPAL MOVIBLE
+-- MOVABLE MAIN FRAME
 ----------------------
 local MainFrame = Instance.new("Frame", gui)
 MainFrame.Name = "MainFrame"
@@ -115,11 +115,11 @@ MainFrame.BorderSizePixel = 0
 MainFrame.ZIndex = 10
 MainFrame.Visible = false
 
--- Esquinas redondeadas
+-- Rounded corners
 local MainCorner = Instance.new("UICorner", MainFrame)
 MainCorner.CornerRadius = UDim.new(0, 16)
 
--- Gradiente de fondo
+-- Background gradient
 local MainGradient = Instance.new("UIGradient", MainFrame)
 MainGradient.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
@@ -127,13 +127,13 @@ MainGradient.Color = ColorSequence.new{
 }
 MainGradient.Rotation = 135
 
--- Stroke moderno
+-- Modern stroke
 local MainStroke = Instance.new("UIStroke", MainFrame)
 MainStroke.Color = Color3.fromRGB(138, 43, 226)
 MainStroke.Thickness = 2
 MainStroke.Transparency = 0.4
 
--- HEADER MOVIBLE para el MainFrame
+-- MOVABLE HEADER for the MainFrame
 local DragHeader = Instance.new("Frame", MainFrame)
 DragHeader.Name = "DragHeader"
 DragHeader.Size = UDim2.new(1, 0, 0, 40)
@@ -146,9 +146,9 @@ DragHeader.ZIndex = 11
 local DragCorner = Instance.new("UICorner", DragHeader)
 DragCorner.CornerRadius = UDim.new(0, 16)
 
--- Título en el header
+-- Title in the header
 local DragTitle = Instance.new("TextLabel", DragHeader)
-DragTitle.Text = "⚡ XproD Hub - Arrastra aquí para mover"
+DragTitle.Text = "⚡ XproD Hub - Drag here to move"
 DragTitle.Font = Enum.Font.GothamBold
 DragTitle.TextSize = 14
 DragTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -158,7 +158,7 @@ DragTitle.BackgroundTransparency = 1
 DragTitle.TextXAlignment = Enum.TextXAlignment.Left
 DragTitle.ZIndex = 12
 
--- Botón de cerrar en el header
+-- Close button in the header
 local CloseBtn = Instance.new("TextButton", DragHeader)
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
 CloseBtn.Position = UDim2.new(1, -35, 0, 5)
@@ -172,7 +172,7 @@ CloseBtn.ZIndex = 12
 local CloseBtnCorner = Instance.new("UICorner", CloseBtn)
 CloseBtnCorner.CornerRadius = UDim.new(0, 8)
 
--- Sistema de arrastre para el MainFrame
+-- Drag system for the MainFrame
 local frameDragging = false
 local frameDragStart = nil
 local frameStartPos = nil
@@ -198,12 +198,12 @@ uis.InputChanged:Connect(function(input)
     end
 end)
 
--- Toggle funcional
+-- Functional toggle
 local isOpen = false
 
--- Click en ícono para abrir
+-- Click on icon to open
 IconBtn.MouseButton1Click:Connect(function()
-    if not iconDragging then -- Solo abrir si no estamos arrastrando
+    if not iconDragging then -- Only open if not dragging
         isOpen = not isOpen
         
         if isOpen then
@@ -218,7 +218,7 @@ IconBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Click en botón cerrar
+-- Click on close button
 CloseBtn.MouseButton1Click:Connect(function()
     isOpen = false
     simpleTween(MainFrame, 0.3, {Size = UDim2.new(0, 0, 0, 0)})
@@ -239,7 +239,7 @@ SideBar.ZIndex = 11
 local SideCorner = Instance.new("UICorner", SideBar)
 SideCorner.CornerRadius = UDim.new(0, 16)
 
--- Header del sidebar
+-- Sidebar header
 local SideHeader = Instance.new("Frame", SideBar)
 SideHeader.Size = UDim2.new(1, 0, 0, 70)
 SideHeader.Position = UDim2.new(0, 0, 0, 0)
@@ -251,7 +251,7 @@ SideHeader.ZIndex = 12
 local SideHeaderCorner = Instance.new("UICorner", SideHeader)
 SideHeaderCorner.CornerRadius = UDim.new(0, 16)
 
--- Título del sidebar
+-- Sidebar title
 local SideTitle = Instance.new("TextLabel", SideHeader)
 SideTitle.Text = "XproD Hub"
 SideTitle.Font = Enum.Font.GothamBold
@@ -275,7 +275,7 @@ SideSubtitle.TextXAlignment = Enum.TextXAlignment.Left
 SideSubtitle.ZIndex = 13
 
 ----------------------
--- ÁREA DE CONTENIDO CON SCROLL
+-- CONTENT AREA WITH SCROLL
 ----------------------
 local ContentArea = Instance.new("Frame", MainFrame)
 ContentArea.Size = UDim2.new(1, -150, 1, -55)
@@ -283,7 +283,7 @@ ContentArea.Position = UDim2.new(0, 145, 0, 50)
 ContentArea.BackgroundTransparency = 1
 ContentArea.ZIndex = 12
 
--- SCROLLING FRAME FUNCIONAL
+-- FUNCTIONAL SCROLLING FRAME
 local ScrollFrame = Instance.new("ScrollingFrame", ContentArea)
 ScrollFrame.Size = UDim2.new(1, 0, 1, 0)
 ScrollFrame.Position = UDim2.new(0, 0, 0, 0)
@@ -292,17 +292,17 @@ ScrollFrame.BackgroundTransparency = 0.3
 ScrollFrame.BorderSizePixel = 0
 ScrollFrame.ZIndex = 12
 
--- Configuración del scroll
+-- Scroll configuration
 ScrollFrame.ScrollBarThickness = 8
 ScrollFrame.ScrollBarImageColor3 = Color3.fromRGB(138, 43, 226)
 ScrollFrame.ScrollBarImageTransparency = 0.3
-ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800) -- Altura total del contenido
+ScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800) -- Total content height
 ScrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
 
 local ScrollCorner = Instance.new("UICorner", ScrollFrame)
 ScrollCorner.CornerRadius = UDim.new(0, 12)
 
--- Título del panel dentro del scroll
+-- Panel title inside scroll
 local PanelTitle = Instance.new("TextLabel", ScrollFrame)
 PanelTitle.Text = "⚡ Training Center"
 PanelTitle.Font = Enum.Font.GothamBold
@@ -315,7 +315,7 @@ PanelTitle.TextXAlignment = Enum.TextXAlignment.Left
 PanelTitle.ZIndex = 13
 
 local PanelSubtitle = Instance.new("TextLabel", ScrollFrame)
-PanelSubtitle.Text = "Configure todas tus opciones de entrenamiento automático"
+PanelSubtitle.Text = "Configure all your automatic training options"
 PanelSubtitle.Font = Enum.Font.Gotham
 PanelSubtitle.TextSize = 12
 PanelSubtitle.TextColor3 = Color3.fromRGB(180, 180, 200)
@@ -326,10 +326,58 @@ PanelSubtitle.TextXAlignment = Enum.TextXAlignment.Left
 PanelSubtitle.ZIndex = 13
 
 ----------------------
--- SWITCHES MODERNOS CON SCROLL
+-- SWORD EQUIPMENT SYSTEM
 ----------------------
-local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, setVal)
-    -- Container principal
+local plr = game:GetService("Players").LocalPlayer
+
+local function clickSwordButton()
+    local success = false
+    local mainGui = plr.PlayerGui:FindFirstChild("Main")
+    if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
+        local btn = mainGui.Hotkeys.Button_4
+        if typeof(firesignal) == "function" then
+            firesignal(btn.MouseButton1Click)
+            success = true
+        else
+            local vim = game:GetService("VirtualInputManager")
+            local absPos = btn.AbsolutePosition
+            local absSize = btn.AbsoluteSize
+            local x = absPos.X + absSize.X/2
+            local y = absPos.Y + absSize.Y/2
+            vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
+            vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
+            success = true
+        end
+    end
+    if success then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "XproD Hub";
+            Text = "⚔️ Sword equipped successfully!";
+            Duration = 3;
+        })
+    end
+end
+
+-- Equip sword on character spawn if needed
+local function onCharacter(char)
+    spawn(function()
+        wait(1.2)
+        if getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSword then
+            clickSwordButton()
+        end
+    end)
+end
+
+plr.CharacterAdded:Connect(onCharacter)
+if plr.Character then
+    onCharacter(plr.Character)
+end
+
+----------------------
+-- MODERN SWITCHES WITH SCROLL
+----------------------
+local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, setVal, needsSword)
+    -- Main container
     local container = Instance.new("Frame", parent)
     container.Size = UDim2.new(1, -30, 0, 85)
     container.Position = UDim2.new(0, 15, 0, y)
@@ -341,13 +389,13 @@ local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, se
     local containerCorner = Instance.new("UICorner", container)
     containerCorner.CornerRadius = UDim.new(0, 12)
     
-    -- Stroke elegante
+    -- Elegant stroke
     local containerStroke = Instance.new("UIStroke", container)
     containerStroke.Color = Color3.fromRGB(60, 60, 80)
     containerStroke.Thickness = 1
     containerStroke.Transparency = 0.5
     
-    -- Ícono grande
+    -- Large icon
     local iconLabel = Instance.new("TextLabel", container)
     iconLabel.Size = UDim2.new(0, 45, 0, 45)
     iconLabel.Position = UDim2.new(0, 15, 0, 20)
@@ -358,7 +406,7 @@ local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, se
     iconLabel.TextColor3 = Color3.fromRGB(138, 43, 226)
     iconLabel.ZIndex = 15
     
-    -- Título principal
+    -- Main title
     local titleLabel = Instance.new("TextLabel", container)
     titleLabel.Size = UDim2.new(1, -140, 0, 25)
     titleLabel.Position = UDim2.new(0, 70, 0, 15)
@@ -370,7 +418,7 @@ local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, se
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.ZIndex = 15
     
-    -- Subtítulo descriptivo
+    -- Descriptive subtitle
     local subtitleLabel = Instance.new("TextLabel", container)
     subtitleLabel.Size = UDim2.new(1, -140, 0, 35)
     subtitleLabel.Position = UDim2.new(0, 70, 0, 40)
@@ -383,7 +431,7 @@ local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, se
     subtitleLabel.TextWrapped = true
     subtitleLabel.ZIndex = 15
     
-    -- Switch background moderno
+    -- Modern switch background
     local switchBg = Instance.new("Frame", container)
     switchBg.Size = UDim2.new(0, 55, 0, 28)
     switchBg.Position = UDim2.new(1, -70, 0.5, -14)
@@ -394,7 +442,7 @@ local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, se
     local switchCorner = Instance.new("UICorner", switchBg)
     switchCorner.CornerRadius = UDim.new(0, 14)
     
-    -- Switch button (círculo)
+    -- Switch button (circle)
     local switchButton = Instance.new("Frame", switchBg)
     switchButton.Size = UDim2.new(0, 24, 0, 24)
     switchButton.Position = UDim2.new(0, getVal() and 29 or 2, 0, 2)
@@ -405,19 +453,19 @@ local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, se
     local buttonCorner = Instance.new("UICorner", switchButton)
     buttonCorner.CornerRadius = UDim.new(0, 12)
     
-    -- Estado del switch
+    -- Switch status
     local statusLabel = Instance.new("TextLabel", container)
     statusLabel.Size = UDim2.new(0, 60, 0, 15)
     statusLabel.Position = UDim2.new(1, -70, 0, 10)
     statusLabel.BackgroundTransparency = 1
-    statusLabel.Text = getVal() and "ACTIVO" or "INACTIVO"
+    statusLabel.Text = getVal() and "ACTIVE" or "INACTIVE"
     statusLabel.Font = Enum.Font.GothamBold
     statusLabel.TextSize = 10
     statusLabel.TextColor3 = getVal() and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
     statusLabel.TextXAlignment = Enum.TextXAlignment.Center
     statusLabel.ZIndex = 15
     
-    -- Botón invisible para capturar clicks
+    -- Invisible button to capture clicks
     local clickButton = Instance.new("TextButton", container)
     clickButton.Size = UDim2.new(1, 0, 1, 0)
     clickButton.Position = UDim2.new(0, 0, 0, 0)
@@ -425,29 +473,37 @@ local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, se
     clickButton.Text = ""
     clickButton.ZIndex = 17
     
-    -- Funcionalidad del switch
+    -- Switch functionality
     clickButton.MouseButton1Click:Connect(function()
         local newVal = not getVal()
         setVal(newVal)
         
-        -- Animaciones del switch
+        -- Equip sword immediately if needed
+        if newVal and needsSword then
+            spawn(function()
+                wait(0.1)
+                clickSwordButton()
+            end)
+        end
+        
+        -- Switch animations
         local newColor = newVal and Color3.fromRGB(138, 43, 226) or Color3.fromRGB(60, 60, 80)
         local newPos = newVal and UDim2.new(0, 29, 0, 2) or UDim2.new(0, 2, 0, 2)
         
         simpleTween(switchBg, 0.25, {BackgroundColor3 = newColor})
         simpleTween(switchButton, 0.25, {Position = newPos})
         
-        -- Actualizar estado
-        statusLabel.Text = newVal and "ACTIVO" or "INACTIVO"
+        -- Update status
+        statusLabel.Text = newVal and "ACTIVE" or "INACTIVE"
         statusLabel.TextColor3 = newVal and Color3.fromRGB(100, 255, 150) or Color3.fromRGB(255, 100, 100)
         
-        -- Feedback visual del container
+        -- Visual feedback for container
         simpleTween(container, 0.1, {BackgroundTransparency = 0.1})
         wait(0.1)
         simpleTween(container, 0.1, {BackgroundTransparency = 0.2})
     end)
     
-    -- Efectos hover
+    -- Hover effects
     clickButton.MouseEnter:Connect(function()
         simpleTween(container, 0.2, {BackgroundTransparency = 0.1})
         simpleTween(containerStroke, 0.2, {Transparency = 0.2})
@@ -463,56 +519,62 @@ local function createAdvancedSwitch(parent, y, title, subtitle, icon, getVal, se
     return container
 end
 
--- Crear switches con scroll
+-- Create switches with scroll
 createAdvancedSwitch(
     ScrollFrame, 85, "Speed Training", 
-    "Entrenar velocidad automáticamente con delays optimizados para evitar detección", 
+    "Train speed automatically with optimized delays to avoid detection", 
     "🏃", 
     function() return getgenv().XproD_TrainSpeed end,
-    function(v) getgenv().XproD_TrainSpeed = v end
+    function(v) getgenv().XproD_TrainSpeed = v end,
+    false
 )
 
 createAdvancedSwitch(
     ScrollFrame, 180, "Agility Training", 
-    "Mejorar la agilidad del personaje de forma automática y continua", 
+    "Improve character agility automatically and continuously", 
     "🤸", 
     function() return getgenv().XproD_TrainAgility end,
-    function(v) getgenv().XproD_TrainAgility = v end
+    function(v) getgenv().XproD_TrainAgility = v end,
+    false
 )
 
 createAdvancedSwitch(
     ScrollFrame, 275, "Sword Training", 
-    "Entrenar habilidades de espada con la espada equipada en tu HUD", 
+    "Train sword skills with the sword equipped in your HUD", 
     "⚔️", 
     function() return getgenv().XproD_TrainSword end,
-    function(v) getgenv().XproD_TrainSword = v end
+    function(v) getgenv().XproD_TrainSword = v end,
+    true -- Needs sword
 )
 
 createAdvancedSwitch(
     ScrollFrame, 370, "Auto Farm Bandits", 
-    "Farmear banditos automáticamente para obtener experiencia y dinero", 
+    "Farm bandits automatically to gain experience and money", 
     "💀", 
     function() return getgenv().XproD_AutoFarmBandit end,
-    function(v) getgenv().XproD_AutoFarmBandit = v end
+    function(v) getgenv().XproD_AutoFarmBandit = v end,
+    true -- Needs sword
 )
 
 createAdvancedSwitch(
     ScrollFrame, 465, "Bring Bandits", 
-    "Atraer todos los banditos hacia tu ubicación para farmeo eficiente", 
+    "Attract all bandits to your location for efficient farming", 
     "🧲", 
     function() return getgenv().XproD_BringBandits end,
-    function(v) getgenv().XproD_BringBandits = v end
+    function(v) getgenv().XproD_BringBandits = v end,
+    false
 )
 
 createAdvancedSwitch(
     ScrollFrame, 560, "Anti AFK", 
-    "Prevenir que te echen por inactividad con movimientos sutiles", 
+    "Prevent being kicked for inactivity with subtle movements", 
     "🛡️", 
     function() return getgenv().XproD_AntiAFK end,
-    function(v) getgenv().XproD_AntiAFK = v end
+    function(v) getgenv().XproD_AntiAFK = v end,
+    false
 )
 
--- Sección de información expandida
+-- Expanded information section
 local InfoSection = Instance.new("Frame", ScrollFrame)
 InfoSection.Size = UDim2.new(1, -30, 0, 120)
 InfoSection.Position = UDim2.new(0, 15, 0, 660)
@@ -530,7 +592,7 @@ InfoSectionStroke.Thickness = 1
 InfoSectionStroke.Transparency = 0.7
 
 local InfoTitle = Instance.new("TextLabel", InfoSection)
-InfoTitle.Text = "📋 Información Importante"
+InfoTitle.Text = "📋 Important Information"
 InfoTitle.Font = Enum.Font.GothamBold
 InfoTitle.TextSize = 16
 InfoTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -541,7 +603,7 @@ InfoTitle.TextXAlignment = Enum.TextXAlignment.Left
 InfoTitle.ZIndex = 15
 
 local InfoText = Instance.new("TextLabel", InfoSection)
-InfoText.Text = "⚔️ Sistema de Espadas: El farmeo usará la espada que tengas equipada en tu HUD (botón central inferior). Para cambiarla, selecciona manualmente una diferente desde el menú de Swords.\n\n🔧 Optimizado: Todos los delays se ajustan automáticamente según el rendimiento para evitar detección."
+InfoText.Text = "⚔️ Sword System: Farming will use the sword equipped in your HUD (center bottom button). To change it, manually select a different one from the Swords menu.\n\n🔧 Optimized: All delays automatically adjust based on performance to avoid detection.\n\n✨ NEW: Sword auto-equips when activating sword training or bandit farming!"
 InfoText.Font = Enum.Font.Gotham
 InfoText.TextSize = 12
 InfoText.TextColor3 = Color3.fromRGB(200, 200, 220)
@@ -553,45 +615,10 @@ InfoText.TextYAlignment = Enum.TextYAlignment.Top
 InfoText.ZIndex = 15
 
 ----------------------
--- FUNCIONALIDAD COMPLETA (mantenida del original)
+-- COMPLETE FUNCTIONALITY
 ----------------------
 
--- Sistema de equipar sword solo tras respawn
-local plr = game:GetService("Players").LocalPlayer
-
-local function clickSwordButton()
-    local mainGui = plr.PlayerGui:FindFirstChild("Main")
-    if mainGui and mainGui:FindFirstChild("Hotkeys") and mainGui.Hotkeys:FindFirstChild("Button_4") then
-        local btn = mainGui.Hotkeys.Button_4
-        if typeof(firesignal) == "function" then
-            firesignal(btn.MouseButton1Click)
-        else
-            local vim = game:GetService("VirtualInputManager")
-            local absPos = btn.AbsolutePosition
-            local absSize = btn.AbsoluteSize
-            local x = absPos.X + absSize.X/2
-            local y = absPos.Y + absSize.Y/2
-            vim:SendMouseButtonEvent(x, y, 0, true, btn, 1)
-            vim:SendMouseButtonEvent(x, y, 0, false, btn, 1)
-        end
-    end
-end
-
-local function onCharacter(char)
-    spawn(function()
-        wait(1.2)
-        if getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSword then
-            clickSwordButton()
-        end
-    end)
-end
-
-plr.CharacterAdded:Connect(onCharacter)
-if plr.Character then
-    onCharacter(plr.Character)
-end
-
--- Funciones de entrenamiento
+-- Training functions
 local Remote = game:GetService("ReplicatedStorage").RemoteEvents
 
 local lastFrameTime = tick()
@@ -634,7 +661,7 @@ local function attackWithSword()
     end)
 end
 
--- Loops de entrenamiento
+-- Training loops
 local function speedFarmLoop()
     while getgenv().XproD_TrainSpeed do
         trainSpeed()
@@ -725,7 +752,7 @@ local function antiAFKLoop()
     end
 end
 
--- Sistema de loops
+-- Loop system
 local activeLoops = {}
 
 local function startLoop(name, func)
@@ -759,7 +786,7 @@ spawn(function()
     end
 end)
 
--- Notificaciones mejoradas
+-- Improved notifications
 spawn(function()
     wait(2)
     local function notify(text, icon)
@@ -769,13 +796,15 @@ spawn(function()
             Duration = 4;
         })
     end
-    notify("Hub cargado exitosamente!", "✅")
-    notify("Scroll funcional activado!", "📜")
-    notify("Arrastre mejorado habilitado!", "🎯")
+    notify("Hub loaded successfully!", "✅")
+    notify("Functional scroll activated!", "📜")
+    notify("Improved dragging enabled!", "🎯")
+    notify("Sword auto-equip system ready!", "⚔️")
 end)
 
-print("🚀 XproD Hub v2.2 - Complete Edition loaded!")
-print("✅ Scrolling funcional implementado")
-print("🎯 Arrastre completo del ícono y UI")
-print("📱 Navegación mejorada")
-print("⚡ Todas las funciones operativas")
+print("🚀 XproD Hub v2.2 - Complete English Edition loaded!")
+print("✅ Functional scrolling implemented")
+print("🎯 Complete icon and UI dragging")
+print("📱 Improved navigation")
+print("⚔️ Sword auto-equip on activation")
+print("⚡ All functions operational")
