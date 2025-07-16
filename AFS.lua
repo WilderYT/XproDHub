@@ -1,5 +1,5 @@
--- XproD Hub | GUI profesional: Solo equipa la sword si está desequipada, nunca spamea, ni alterna. Reequipa si mueres, con delay robusto.
--- Soporta firesignal y fallback a VirtualInputManager.
+-- XproD Hub | GUI profesional: Solo equipa la sword tras respawn/muerte si tienes activado autofarm,
+-- nunca alterna ni spamea. Solución definitiva para HUD toggle.
 
 -- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
@@ -293,24 +293,9 @@ makeSwitch(
 )
 
 ----------------------
--- FUNCIONES: EQUIP SWORD SOLO SI ESTÁ DESEQUIPADA (¡anti-spam, anti-toggle, con delay robusto!)
+-- EQUIP SWORD SOLO TRAS RESPAWN Y SOLO SI AUTOFARM/TRAINSWORD ESTÁN ACTIVOS
 ----------------------
-
 local plr = game:GetService("Players").LocalPlayer
-local lastCharacter = nil
-local lastEquipAttempt = 0
-local equipCooldown = 2 -- segundos de espera tras cada intento de click
-
-local function isSwordEquipped()
-    local char = plr.Character
-    if not char then return false end
-    for _,v in pairs(char:GetChildren()) do
-        if v:IsA("Tool") and v.Name:lower():find("sword") then
-            return true
-        end
-    end
-    return false
-end
 
 local function clickSwordButton()
     local mainGui = plr.PlayerGui:FindFirstChild("Main")
@@ -330,27 +315,24 @@ local function clickSwordButton()
     end
 end
 
--- Solo intenta equipar cuando ocurre respawn o cuando realmente está desequipada, y espera cooldown
-spawn(function()
-    while true do
-        local active = getgenv().XproD_TrainSword or getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSpeed or getgenv().XproD_TrainAgility
-        if active then
-            local char = plr.Character
-            if char ~= lastCharacter then
-                -- Nuevo respawn, esperamos un poco antes de intentar
-                lastCharacter = char
-                wait(1.2)
-                lastEquipAttempt = 0
-            end
-            if not isSwordEquipped() and (tick() - lastEquipAttempt) > equipCooldown then
-                clickSwordButton()
-                lastEquipAttempt = tick()
-            end
+-- Solo equipa la sword tras respawn/muerte y solo si autofarm o trainsword están activos
+local function onCharacter(char)
+    spawn(function()
+        wait(1.2) -- Espera a que cargue el personaje
+        if getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSword then
+            clickSwordButton()
         end
-        wait(0.5)
-    end
-end)
+    end)
+end
 
+plr.CharacterAdded:Connect(onCharacter)
+if plr.Character then
+    onCharacter(plr.Character)
+end
+
+----------------------
+-- FUNCIONES DE TRAIN/FARM
+----------------------
 local Remote = game:GetService("ReplicatedStorage").RemoteEvents
 
 local function trainSword()
@@ -382,7 +364,6 @@ local function swordFarmLoop()
     end
 end
 
--- FUNCIONES DE AUTO FARM BANDIT
 local function tpToBandit(bandit)
     if bandit and bandit:FindFirstChild("HumanoidRootPart") then
         local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
