@@ -1,6 +1,7 @@
--- XproD Hub | Complete GUI with Scrolling and Dragging v2.2
+-- XproD Hub | Complete GUI with Scrolling and Dragging v2.3
 -- Modern UI with functional scroll, completely movable icon and UI
 -- Equips sword immediately when activating autofarm or sword training
+-- IMPROVED: Better autoclicker system and auto-respawn teleport
 
 -- GLOBALS
 getgenv().XproD_TrainSpeed = getgenv().XproD_TrainSpeed or false
@@ -14,6 +15,7 @@ pcall(function() game.CoreGui.XproD_Hub:Destroy() end)
 
 local TweenService = game:GetService("TweenService")
 local uis = game:GetService("UserInputService")
+local plr = game:GetService("Players").LocalPlayer
 local gui = Instance.new("ScreenGui")
 gui.Name = "XproD_Hub"
 gui.Parent = game:GetService("CoreGui")
@@ -264,7 +266,7 @@ SideTitle.TextXAlignment = Enum.TextXAlignment.Left
 SideTitle.ZIndex = 13
 
 local SideSubtitle = Instance.new("TextLabel", SideHeader)
-SideSubtitle.Text = "Modern Edition v2.2"
+SideSubtitle.Text = "Modern Edition v2.3"
 SideSubtitle.Font = Enum.Font.Gotham
 SideSubtitle.TextSize = 11
 SideSubtitle.TextColor3 = Color3.fromRGB(200, 200, 255)
@@ -326,9 +328,9 @@ PanelSubtitle.TextXAlignment = Enum.TextXAlignment.Left
 PanelSubtitle.ZIndex = 13
 
 ----------------------
--- SWORD EQUIPMENT SYSTEM
+-- IMPROVED SWORD EQUIPMENT SYSTEM
 ----------------------
-local plr = game:GetService("Players").LocalPlayer
+local lastBanditPosition = nil -- Para recordar la última posición de farm
 
 local function clickSwordButton()
     local success = false
@@ -358,12 +360,26 @@ local function clickSwordButton()
     end
 end
 
--- Equip sword on character spawn if needed
+-- IMPROVED: Auto-respawn system
 local function onCharacter(char)
     spawn(function()
         wait(1.2)
         if getgenv().XproD_AutoFarmBandit or getgenv().XproD_TrainSword then
             clickSwordButton()
+        end
+        
+        -- Auto teleport back to bandits after respawn
+        if getgenv().XproD_AutoFarmBandit and lastBanditPosition then
+            wait(1)
+            local hrp = char:WaitForChild("HumanoidRootPart", 5)
+            if hrp then
+                hrp.CFrame = lastBanditPosition
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "XproD Hub";
+                    Text = "🚀 Auto-teleported back to farm location!";
+                    Duration = 3;
+                })
+            end
         end
     end)
 end
@@ -576,7 +592,7 @@ createAdvancedSwitch(
 
 -- Expanded information section
 local InfoSection = Instance.new("Frame", ScrollFrame)
-InfoSection.Size = UDim2.new(1, -30, 0, 120)
+InfoSection.Size = UDim2.new(1, -30, 0, 140)
 InfoSection.Position = UDim2.new(0, 15, 0, 660)
 InfoSection.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
 InfoSection.BackgroundTransparency = 0.3
@@ -592,7 +608,7 @@ InfoSectionStroke.Thickness = 1
 InfoSectionStroke.Transparency = 0.7
 
 local InfoTitle = Instance.new("TextLabel", InfoSection)
-InfoTitle.Text = "📋 Important Information"
+InfoTitle.Text = "📋 Important Information - v2.3 Updates"
 InfoTitle.Font = Enum.Font.GothamBold
 InfoTitle.TextSize = 16
 InfoTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -603,23 +619,24 @@ InfoTitle.TextXAlignment = Enum.TextXAlignment.Left
 InfoTitle.ZIndex = 15
 
 local InfoText = Instance.new("TextLabel", InfoSection)
-InfoText.Text = "⚔️ Sword System: Farming will use the sword equipped in your HUD (center bottom button). To change it, manually select a different one from the Swords menu.\n\n🔧 Optimized: All delays automatically adjust based on performance to avoid detection.\n\n✨ NEW: Sword auto-equips when activating sword training or bandit farming!"
+InfoText.Text = "⚔️ IMPROVED: Enhanced autoclicker system for better performance!\n🔄 NEW: Auto-respawn teleport - returns to farm location after death/reset!\n💥 IMPROVED: More aggressive clicking patterns for sword training and bandit farming!\n🎯 Auto-sword equipping enhanced for immediate activation!\n\n✨ All systems optimized for maximum efficiency and reliability!"
 InfoText.Font = Enum.Font.Gotham
 InfoText.TextSize = 12
 InfoText.TextColor3 = Color3.fromRGB(200, 200, 220)
 InfoText.BackgroundTransparency = 1
 InfoText.Position = UDim2.new(0, 15, 0, 35)
-InfoText.Size = UDim2.new(1, -30, 0, 75)
+InfoText.Size = UDim2.new(1, -30, 0, 95)
 InfoText.TextWrapped = true
 InfoText.TextYAlignment = Enum.TextYAlignment.Top
 InfoText.ZIndex = 15
 
 ----------------------
--- COMPLETE FUNCTIONALITY
+-- IMPROVED FUNCTIONALITY WITH BETTER AUTOCLICKER
 ----------------------
 
 -- Training functions
 local Remote = game:GetService("ReplicatedStorage").RemoteEvents
+local VirtualInputManager = game:GetService("VirtualInputManager")
 
 local lastFrameTime = tick()
 local function getOptimalDelay(baseDelay)
@@ -628,15 +645,24 @@ local function getOptimalDelay(baseDelay)
     lastFrameTime = currentTime
     
     if deltaTime > 0.1 then
-        return baseDelay + 0.1
+        return baseDelay + 0.05
     end
     return baseDelay
 end
 
+-- IMPROVED: Better sword training with autoclicker
 local function trainSword()
     pcall(function()
         Remote.SwordTrainingEvent:FireServer()
         Remote.SwordPopUpEvent:FireServer()
+        
+        -- Simulate mouse click for better effect
+        spawn(function()
+            local mousePos = uis:GetMouseLocation()
+            VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 1)
+            wait(0.01)
+            VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 1)
+        end)
     end)
 end
 
@@ -654,35 +680,59 @@ local function trainAgility()
     end)
 end
 
+-- IMPROVED: Enhanced sword attack with multiple methods
 local function attackWithSword()
     pcall(function()
+        -- Primary attack
         Remote.SwordAttackEvent:FireServer()
         Remote.SwordPopUpEvent:FireServer()
+        
+        -- Enhanced clicking simulation
+        spawn(function()
+            local mousePos = uis:GetMouseLocation()
+            -- Double click for better effect
+            for i = 1, 2 do
+                VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, true, game, 1)
+                wait(0.01)
+                VirtualInputManager:SendMouseButtonEvent(mousePos.X, mousePos.Y, 0, false, game, 1)
+                wait(0.02)
+            end
+        end)
+        
+        -- Alternative methods
+        spawn(function()
+            -- Try to activate tool if available
+            local tool = plr.Character and plr.Character:FindFirstChildOfClass("Tool")
+            if tool and tool:FindFirstChild("Handle") then
+                tool:Activate()
+            end
+        end)
     end)
 end
 
--- Training loops
+-- Training loops with improved timing
 local function speedFarmLoop()
     while getgenv().XproD_TrainSpeed do
         trainSpeed()
-        local delay = getOptimalDelay(0.35)
-        wait(delay + math.random(0, 0.1))
+        local delay = getOptimalDelay(0.3)
+        wait(delay + math.random(0, 0.05))
     end
 end
 
 local function agilityFarmLoop()
     while getgenv().XproD_TrainAgility do
         trainAgility()
-        local delay = getOptimalDelay(0.35)
-        wait(delay + math.random(0, 0.1))
+        local delay = getOptimalDelay(0.3)
+        wait(delay + math.random(0, 0.05))
     end
 end
 
+-- IMPROVED: More aggressive sword training loop
 local function swordFarmLoop()
     while getgenv().XproD_TrainSword do
         trainSword()
-        local delay = getOptimalDelay(0.3)
-        wait(delay + math.random(0, 0.05))
+        local delay = getOptimalDelay(0.15) -- Faster clicking
+        wait(delay + math.random(0, 0.03))
     end
 end
 
@@ -690,7 +740,9 @@ local function tpToBandit(bandit)
     if bandit and bandit:FindFirstChild("HumanoidRootPart") then
         local hrp = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
         if hrp then
-            hrp.CFrame = bandit.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
+            local newPos = bandit.HumanoidRootPart.CFrame + Vector3.new(0, 2, 0)
+            hrp.CFrame = newPos
+            lastBanditPosition = newPos -- Store for respawn
         end
     end
 end
@@ -714,26 +766,38 @@ local function bringAllBanditsToMe()
             bandit.HumanoidRootPart.CFrame = hrp.CFrame + Vector3.new(math.random(-3,3),0,math.random(-3,3))
         end
     end
+    lastBanditPosition = hrp.CFrame -- Update last position
 end
 
+-- IMPROVED: More aggressive bandit farming with better autoclicker
 local function autoFarmBanditLoop()
     while getgenv().XproD_AutoFarmBandit do
         if getgenv().XproD_BringBandits then
             bringAllBanditsToMe()
-            wait(1)
+            wait(0.8) -- Reduced wait time
         end
+        
         local bandits = getAllBandits()
         for _,bandit in ipairs(bandits) do
             if not getgenv().XproD_AutoFarmBandit then break end
             tpToBandit(bandit)
+            
+            -- More aggressive attack loop
             while bandit and bandit.Parent and bandit:FindFirstChild("Humanoid") and bandit.Humanoid.Health > 0 and getgenv().XproD_AutoFarmBandit do
                 attackWithSword()
-                local delay = getOptimalDelay(0.25)
-                wait(delay + math.random(0, 0.05))
+                
+                -- Multiple attacks per cycle for better killing
+                spawn(function()
+                    wait(0.05)
+                    attackWithSword()
+                end)
+                
+                local delay = getOptimalDelay(0.12) -- Much faster attacking
+                wait(delay + math.random(0, 0.02))
             end
-            wait(0.2)
+            wait(0.1) -- Reduced wait between bandits
         end
-        wait(0.5)
+        wait(0.3) -- Reduced cycle wait
     end
 end
 
@@ -782,7 +846,7 @@ spawn(function()
         if getgenv().XproD_AntiAFK and not activeLoops["antiafk"] then
             startLoop("antiafk", antiAFKLoop)
         end
-        wait(1)
+        wait(0.5) -- More frequent checks
     end
 end)
 
@@ -791,20 +855,20 @@ spawn(function()
     wait(2)
     local function notify(text, icon)
         game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "XproD Hub v2.2";
+            Title = "XproD Hub v2.3";
             Text = icon.." "..text;
             Duration = 4;
         })
     end
-    notify("Hub loaded successfully!", "✅")
-    notify("Functional scroll activated!", "📜")
-    notify("Improved dragging enabled!", "🎯")
-    notify("Sword auto-equip system ready!", "⚔️")
+    notify("Hub loaded with improvements!", "✅")
+    notify("Enhanced autoclicker system!", "🖱️")
+    notify("Auto-respawn teleport enabled!", "🔄")
+    notify("Optimized for better performance!", "⚡")
 end)
 
-print("🚀 XproD Hub v2.2 - Complete English Edition loaded!")
-print("✅ Functional scrolling implemented")
-print("🎯 Complete icon and UI dragging")
-print("📱 Improved navigation")
-print("⚔️ Sword auto-equip on activation")
-print("⚡ All functions operational")
+print("🚀 XproD Hub v2.3 - IMPROVED EDITION loaded!")
+print("✅ Enhanced autoclicker system")
+print("🔄 Auto-respawn teleport system")
+print("💥 Improved sword training and bandit farming")
+print("🎯 Better click simulation and multiple attack methods")
+print("⚡ All functions optimized for maximum performance")
