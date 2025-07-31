@@ -1,5 +1,5 @@
 -- Server Hop REAL + ESP Brainrots PREMIUM/GOD - Antiloop JobId y aviso
--- Script por Copilot para WilderYT
+-- WilderYT
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
@@ -143,7 +143,6 @@ local function espAllBrainrots(brainrotList)
     end
 end
 
--- Obtiene servidores públicos (API Roblox, requiere HttpGet permitido)
 local function getServerList()
     local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Desc&limit=100"
     local success, servers = pcall(function()
@@ -151,6 +150,7 @@ local function getServerList()
     end)
     if not success then
         print("❌ Tu executor NO permite HttpGet. Solo rejoin.")
+        infoLabel.Text = "❌ No hay serverIds disponibles. Solo rejoin."
         return nil
     end
     local decoded = HttpService:JSONDecode(servers)
@@ -169,12 +169,12 @@ local function countTable(t)
     return c
 end
 
--- Server hop REAL loop con antiloop
 local function hopLoop()
-    print("🧠 Iniciando Server Hop Brainrots PREMIUM REAL...")
+    print("🧠 Iniciando Server Hop Brainrots REAL...")
     local serverList = getServerList()
     if not serverList or #serverList == 0 then
-        print("❌ No hay serverIds disponibles. Server hop automático NO disponible, solo rejoin.")
+        print("❌ No hay serverIds disponibles. Solo rejoin.")
+        infoLabel.Text = "❌ No hay serverIds disponibles. Solo rejoin."
         return
     end
     for _,serverId in ipairs(serverList) do
