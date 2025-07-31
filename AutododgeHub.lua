@@ -1,4 +1,4 @@
--- Server Hop REAL con lista manual filtrada + ESP Brainrots PREMIUM/GOD
+-- Server Hop REAL con lista manual + ESP Brainrots PREMIUM/GOD
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
@@ -7,20 +7,21 @@ local PLACE_ID = game.PlaceId
 
 local SECRET_BRAINROTS = {
     ["La Vacca Saturno Saturnita"] = true, ["Chimpanzini Spiderini"] = true,
-    -- ... (el resto)
+    -- ... (el resto de tus brainrots)
     ["Noobini Pizzanini"] = true
 }
 
 local SERVER_IDS = {
-    -- Pega aquí IDs válidos y actuales, NO repetidos ni vacíos.
+    -- Pega aquí tus serverIds (JobId), ejemplo:
     "943d0288-1254-48b0-bc00-8044f5f2e278",
     "dee8f823-37ec-4d3a-846f-37c99aa51060",
-    -- etc
+    -- Agrega más si quieres
 }
 
 local IS_HOPPING = false
 local espObjects = {}
 
+-- UI switch ON/OFF
 local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 local button = Instance.new("TextButton", screenGui)
 button.Size = UDim2.new(0, 200, 0, 50)
@@ -30,16 +31,6 @@ button.BackgroundColor3 = Color3.new(0.3,0.3,0.3)
 button.TextColor3 = Color3.new(1,1,1)
 button.Font = Enum.Font.SourceSansBold
 button.TextScaled = true
-
-local infoLabel = Instance.new("TextLabel", screenGui)
-infoLabel.Size = UDim2.new(0, 500, 0, 40)
-infoLabel.Position = UDim2.new(0.1, 0, 0.17, 0)
-infoLabel.BackgroundTransparency = 0.5
-infoLabel.BackgroundColor3 = Color3.fromRGB(30,30,30)
-infoLabel.TextColor3 = Color3.fromRGB(0,255,100)
-infoLabel.Font = Enum.Font.SourceSansBold
-infoLabel.TextScaled = true
-infoLabel.Text = "Server Hop Manual"
 
 local function clearESP()
     for _, v in ipairs(espObjects) do
@@ -122,26 +113,12 @@ local function hopLoop()
     print("🧠 Iniciando Server Hop manual por serverIds...")
     for _,serverId in ipairs(SERVER_IDS) do
         if not IS_HOPPING then
-            print("⏹ Server Hop manual DESACTIVADO.")
+            print("⏹ Server Hop detenido por usuario.")
             clearESP()
-            infoLabel.Text = "Server Hop manual DESACTIVADO."
             return
         end
-        if serverId == game.JobId or not serverId or serverId == "" then
-            print("⚠️ ServerId inválido o repetido, saltando al siguiente.")
-            goto continue
-        end
         print("🌎 Saltando a server: " .. serverId)
-        infoLabel.Text = "Saltando a server: " .. serverId
-        local success, message = pcall(function()
-            TeleportService:TeleportToPlaceInstance(PLACE_ID, serverId, LocalPlayer)
-        end)
-        if not success then
-            print("❌ Teleport FAILED: " .. tostring(message))
-            infoLabel.Text = "❌ Teleport FAILED: " .. tostring(message)
-            wait(2)
-            goto continue
-        end
+        TeleportService:TeleportToPlaceInstance(PLACE_ID, serverId, LocalPlayer)
         wait(10)
         local found = scanCurrentServer()
         if #found > 0 then
@@ -150,7 +127,6 @@ local function hopLoop()
                 print("   • " .. name)
             end
             espAllBrainrots(found)
-            infoLabel.Text = "🎉 Encontrado: " .. table.concat(found, ", ")
             print("✅ Te quedaste en este server. ESP ACTIVADO.")
             IS_HOPPING = false
             button.Text = "Server Hop: OFF"
@@ -159,7 +135,6 @@ local function hopLoop()
         else
             clearESP()
         end
-        ::continue::
         wait(1)
     end
     print("🧠 Fin del Server Hop manual.")
@@ -177,8 +152,7 @@ button.MouseButton1Click:Connect(function()
         button.BackgroundColor3 = Color3.new(0.3,0.3,0.3)
         clearESP()
         print("🔴 Server Hop manual DESACTIVADO")
-        infoLabel.Text = "Server Hop manual DESACTIVADO."
     end
 end)
 
-print("✅ Script listo. Usa serverIds actuales y públicos para evitar error 773. El ESP se activa cuando encuentra brainrots.")
+print("✅ Script listo. Modifica la lista SERVER_IDS para recorrer servers reales y buscar brainrots con ESP.")
