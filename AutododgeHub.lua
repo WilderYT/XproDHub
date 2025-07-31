@@ -1,197 +1,213 @@
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local UIS = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
+-- Server Hop REAL + ESP Brainrots PREMIUM/GOD
+-- Cambia entre servidores públicos buscando brainrots automáticamente
 
-local DodgeAnims = {
-    ReplicatedStorage.Animations.Abilities.Dodge.Dodge1,
-    ReplicatedStorage.Animations.Abilities.Dodge.Dodge2,
-    ReplicatedStorage.Animations.Abilities.Dodge.Dodge3
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local PLACE_ID = game.PlaceId
+
+local SECRET_BRAINROTS = {
+    ["La Vacca Saturno Saturnita"] = true,
+    ["Chimpanzini Spiderini"] = true,
+    ["Los Tralaleritos"] = true,
+    ["Las Tralaleritas"] = true,
+    ["Las Vaquitas Saturnitas"] = true,
+    ["Graipuss Medussi"] = true,
+    ["Chicleteira Bicicleteira"] = true,
+    ["La Grande Combinasion"] = true,
+    ["Nuclearo Dinossauro"] = true,
+    ["Garama and Madundung"] = true,
+    ["Lucky Block Torrtuginni Dragonfrutini"] = true,
+    ["Pot Hotspot"] = true,
+    ["Cocofanto Elefanto"] = true,
+    ["Girafa Celestre"] = true,
+    ["Gattatino Neonino"] = true,
+    ["Matteo"] = true,
+    ["Tralalero Tralala"] = true,
+    ["Los Crocodillitos"] = true,
+    ["Espresso Signora"] = true,
+    ["Odin Din Din Dun"] = true,
+    ["Statutino Libertino"] = true,
+    ["Trenostruzzo Turbo 3000"] = true,
+    ["Ballerino Lololo"] = true,
+    ["Piccione Macchina"] = true,
+    ["Orcalero Orcala"] = true,
+    ["Noobini Pizzanini"] = true
 }
 
-local UltraDodgeDistance = 10.5
-local DodgeCooldown = 0.8
-local CheckInterval = 0.2
+local IS_HOPPING = false
+local espObjects = {}
 
--- UI
-local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
-gui.Name = "AutoDodgeUI"
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 230, 0, 120)
-frame.Position = UDim2.new(0, 30, 0, 210)
-frame.BackgroundColor3 = Color3.fromRGB(20, 22, 36)
-frame.Active = true
+-- UI switch ON/OFF
+local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+local button = Instance.new("TextButton", screenGui)
+button.Size = UDim2.new(0, 200, 0, 50)
+button.Position = UDim2.new(0.1, 0, 0.1, 0)
+button.Text = "Server Hop: OFF"
+button.BackgroundColor3 = Color3.new(0.3,0.3,0.3)
+button.TextColor3 = Color3.new(1,1,1)
+button.Font = Enum.Font.SourceSansBold
+button.TextScaled = true
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 32)
-title.Position = UDim2.new(0,0,0,0)
-title.BackgroundTransparency = 1
-title.Text = "AutoDodge v7.2"
-title.Font = Enum.Font.GothamBold
-title.TextColor3 = Color3.fromRGB(100,255,255)
-title.TextSize = 18
-
-local toggle = Instance.new("TextButton", frame)
-toggle.Size = UDim2.new(0, 160, 0, 36)
-toggle.Position = UDim2.new(0, 35, 0, 38)
-toggle.BackgroundColor3 = Color3.fromRGB(45, 200, 180)
-toggle.Text = "AutoDodge: ON"
-toggle.Font = Enum.Font.GothamBold
-toggle.TextColor3 = Color3.new(1,1,1)
-toggle.TextSize = 20
-toggle.AutoButtonColor = true
-
-local showHitbox = Instance.new("TextButton", frame)
-showHitbox.Size = UDim2.new(0, 160, 0, 28)
-showHitbox.Position = UDim2.new(0, 35, 0, 84)
-showHitbox.BackgroundColor3 = Color3.fromRGB(90, 90, 155)
-showHitbox.Text = "Mostrar Hitbox: OFF"
-showHitbox.Font = Enum.Font.Gotham
-showHitbox.TextColor3 = Color3.new(1,1,1)
-showHitbox.TextSize = 16
-showHitbox.AutoButtonColor = true
-
-do
-    local dragging, dragInput, dragStart, startPos
-    local function update(input)
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(
-            frame.Position.X.Scale, startPos.X.Offset + delta.X,
-            frame.Position.Y.Scale, startPos.Y.Offset + delta.Y
-        )
+-- Limpia ESP
+local function clearESP()
+    for _, v in ipairs(espObjects) do
+        if v and v.Parent then
+            v:Destroy()
+        end
     end
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then dragging = false end
-            end)
-        end
-    end)
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    UIS.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then update(input) end
-    end)
+    espObjects = {}
 end
 
-local autododgeOn, hitboxVisible = true, false
-toggle.MouseButton1Click:Connect(function()
-    autododgeOn = not autododgeOn
-    toggle.Text = autododgeOn and "AutoDodge: ON" or "AutoDodge: OFF"
-    toggle.BackgroundColor3 = autododgeOn and Color3.fromRGB(45,200,180) or Color3.fromRGB(70,30,30)
-end)
-showHitbox.MouseButton1Click:Connect(function()
-    hitboxVisible = not hitboxVisible
-    showHitbox.Text = hitboxVisible and "Mostrar Hitbox: ON" or "Mostrar Hitbox: OFF"
-    showHitbox.BackgroundColor3 = hitboxVisible and Color3.fromRGB(100,200,80) or Color3.fromRGB(90,90,155)
-    updateHitboxAdornment()
-end)
-UIS.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.J then
-        autododgeOn = not autododgeOn
-        toggle.Text = autododgeOn and "AutoDodge: ON" or "AutoDodge: OFF"
-        toggle.BackgroundColor3 = autododgeOn and Color3.fromRGB(45,200,180) or Color3.fromRGB(70,30,30)
-        updateHitboxAdornment()
-    end
-end)
-
-local hitboxAdornment = nil
-function updateHitboxAdornment()
-    if hitboxAdornment then hitboxAdornment:Destroy() hitboxAdornment = nil end
-    if not hitboxVisible then return end
-    local live = Workspace:FindFirstChild("Live")
-    if live then
-        local char = live:FindFirstChild(LocalPlayer.Name)
-        local torso = char and char:FindFirstChild("Torso")
-        if torso then
-            hitboxAdornment = Instance.new("BoxHandleAdornment")
-            hitboxAdornment.Adornee = torso
-            hitboxAdornment.AlwaysOnTop = true
-            hitboxAdornment.ZIndex = 10
-            hitboxAdornment.Size = torso.Size
-            hitboxAdornment.Color3 = Color3.fromRGB(0,255,128)
-            hitboxAdornment.Transparency = 0.6
-            hitboxAdornment.Visible = true
-            hitboxAdornment.Name = "UltraDodgeHitbox"
-            hitboxAdornment.Parent = torso
-        end
-    end
-end
-
-local function isKnifeFaceToFace()
-    local live = Workspace:FindFirstChild("Live")
-    local myChar = live and live:FindFirstChild(LocalPlayer.Name)
-    local myTorso = myChar and myChar:FindFirstChild("Torso")
-    if not myTorso then return false end
-
-    for _, playerChar in ipairs(live:GetChildren()) do
-        if playerChar ~= myChar then
-            for _, obj in ipairs(playerChar:GetChildren()) do
-                if obj:IsA("BasePart") and obj.Name:lower():find("knife") then
-                    local dist = (obj.Position - myTorso.Position).Magnitude
-                    if dist <= UltraDodgeDistance then
-                        local dirToTorso = (myTorso.Position - obj.Position).Unit
-                        local knifeLook = obj.CFrame.LookVector.Unit
-                        if knifeLook:Dot(dirToTorso) > 0.8 then
-                            return true
-                        end
-                    end
-                end
+-- Devuelve la Part principal de un Model o la Part directamente
+local function getAdorneePart(obj)
+    if obj:IsA("BasePart") then
+        return obj
+    elseif obj:IsA("Model") then
+        if obj.PrimaryPart then return obj.PrimaryPart end
+        for _, part in ipairs(obj:GetChildren()) do
+            if part:IsA("BasePart") then
+                return part
             end
         end
     end
-    return false
+    return nil
 end
 
-local function pressBackpackDodgeButton()
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if backpack then
-        for _, item in ipairs(backpack:GetChildren()) do
-            if item:IsA("Tool") and (item.Name:lower():find("dodge") or (item.ToolTip and item.ToolTip:lower():find("dodge"))) then
-                LocalPlayer.Character.Humanoid:EquipTool(item)
-                return true
+-- ESP visual
+local function createESP(brainrotName)
+    for _, v in ipairs(workspace:GetChildren()) do
+        if v.Name == brainrotName or v.Name:find(brainrotName) then
+            local adornee = getAdorneePart(v)
+            if adornee then
+                local box = Instance.new("BoxHandleAdornment")
+                box.Name = "BrainrotESP"
+                box.Adornee = adornee
+                box.Size = adornee.Size * 0.6
+                box.Color3 = Color3.fromRGB(0, 255, 100)
+                box.Transparency = 0.4
+                box.AlwaysOnTop = true
+                box.ZIndex = 10
+                box.Parent = adornee
+                table.insert(espObjects, box)
+
+                local billboard = Instance.new("BillboardGui")
+                billboard.Size = UDim2.new(0,160,0,40)
+                billboard.Adornee = adornee
+                billboard.AlwaysOnTop = true
+                billboard.Name = "BrainrotESPLabel"
+                billboard.Parent = adornee
+
+                local text = Instance.new("TextLabel", billboard)
+                text.Size = UDim2.new(1,0,1,0)
+                text.BackgroundTransparency = 1
+                text.Text = "🧠 " .. brainrotName
+                text.TextColor3 = Color3.fromRGB(0,255,100)
+                text.TextStrokeTransparency = 0.2
+                text.Font = Enum.Font.SourceSansBold
+                text.TextScaled = true
+
+                table.insert(espObjects, billboard)
             end
         end
     end
-
-    for _, guiObj in ipairs(LocalPlayer.PlayerGui:GetDescendants()) do
-        if (guiObj:IsA("TextButton") or guiObj:IsA("ImageButton")) and guiObj.Visible then
-            if guiObj.Text and guiObj.Text:lower():find("dodge") then guiObj:Activate() return true end
-            if guiObj.Name and guiObj.Name:lower():find("dodge") then guiObj:Activate() return true end
-        end
-    end
-    return false
 end
 
-local function pressPCDodgeKey()
-    local dodgeKey = Enum.KeyCode.Q
-    UIS.InputBegan:Fire(dodgeKey)
-end
-
-local lastDodge = 0
-spawn(function()
-    while true do
-        if autododgeOn and (tick() - lastDodge > DodgeCooldown) then
-            if isKnifeFaceToFace() then
-                if UIS.TouchEnabled then
-                    pressBackpackDodgeButton()
-                else
-                    pressPCDodgeKey()
-                    pressBackpackDodgeButton()
-                end
-                lastDodge = tick()
+-- Scan server actual
+local function scanCurrentServer()
+    local found = {}
+    local eventsFolder = LocalPlayer.PlayerGui:FindFirstChild("ActiveEvents")
+    if eventsFolder and eventsFolder:FindFirstChild("ActiveEvents") then
+        local activeEvents = eventsFolder.ActiveEvents:GetChildren()
+        for _, eventObj in ipairs(activeEvents) do
+            if SECRET_BRAINROTS[eventObj.Name] then
+                table.insert(found, eventObj.Name)
             end
         end
-        wait(CheckInterval)
+    end
+    return found
+end
+
+-- ESP masivo
+local function espAllBrainrots(brainrotList)
+    clearESP()
+    for _, name in ipairs(brainrotList) do
+        createESP(name)
+    end
+end
+
+-- Obtiene servidores públicos (API Roblox, requiere HttpGet permitido)
+local function getServerList()
+    local url = "https://games.roblox.com/v1/games/"..PLACE_ID.."/servers/Public?sortOrder=Desc&limit=100"
+    local success, servers = pcall(function()
+        return HttpService:GetAsync(url)
+    end)
+    if not success then
+        print("❌ Tu executor NO permite HttpGet. Solo rejoin.")
+        return nil
+    end
+    local decoded = HttpService:JSONDecode(servers)
+    local ids = {}
+    for _,server in pairs(decoded.data) do
+        if server.id ~= game.JobId and server.playing < server.maxPlayers then
+            table.insert(ids, server.id)
+        end
+    end
+    return ids
+end
+
+-- Server hop REAL loop
+local function hopLoop()
+    print("🧠 Iniciando Server Hop Brainrots PREMIUM REAL...")
+    local serverList = getServerList()
+    if not serverList or #serverList == 0 then
+        print("❌ No hay serverIds disponibles. Server hop automático NO disponible, solo rejoin.")
+        return
+    end
+    for _,serverId in ipairs(serverList) do
+        if not IS_HOPPING then
+            print("⏹ Server Hop detenido por usuario.")
+            clearESP()
+            return
+        end
+        print("🌎 Saltando a server: " .. serverId)
+        TeleportService:TeleportToPlaceInstance(PLACE_ID, serverId, LocalPlayer)
+        wait(10)
+        local found = scanCurrentServer()
+        if #found > 0 then
+            print("🎉 Brainrot PREMIUM encontrado:")
+            for _, name in ipairs(found) do
+                print("   • " .. name)
+            end
+            espAllBrainrots(found)
+            print("✅ Te quedaste en este server. ESP ACTIVADO.")
+            IS_HOPPING = false
+            button.Text = "Server Hop: OFF"
+            button.BackgroundColor3 = Color3.new(0.3,0.3,0.3)
+            return
+        else
+            clearESP()
+        end
+        wait(1)
+    end
+    print("🧠 Fin del Server Hop REAL.")
+end
+
+-- Botón ON/OFF
+button.MouseButton1Click:Connect(function()
+    IS_HOPPING = not IS_HOPPING
+    if IS_HOPPING then
+        button.Text = "Server Hop: ON"
+        button.BackgroundColor3 = Color3.new(0,0.6,0)
+        print("🟢 Server Hop REAL ACTIVADO")
+        hopLoop()
+    else
+        button.Text = "Server Hop: OFF"
+        button.BackgroundColor3 = Color3.new(0.3,0.3,0.3)
+        clearESP()
+        print("🔴 Server Hop REAL DESACTIVADO")
     end
 end)
 
-print("AutoDodge v7.2 actualizado: Dodge con Q en PC, Backpack y botón en Mobile. 100% funcional.")
+print("✅ Script REAL listo. Toca el botón para activar/desactivar el Server Hop REAL automático. El ESP marcará los brainrots premium/god cuando los encuentre.")
