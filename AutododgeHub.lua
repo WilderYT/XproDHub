@@ -1,5 +1,5 @@
--- Server Hop REAL + ESP Brainrots PREMIUM/GOD
--- Cambia entre servidores públicos buscando brainrots automáticamente
+-- Server Hop REAL + ESP Brainrots PREMIUM/GOD - Antiloop JobId y aviso
+-- Script por Copilot para WilderYT
 
 local Players = game:GetService("Players")
 local TeleportService = game:GetService("TeleportService")
@@ -38,8 +38,9 @@ local SECRET_BRAINROTS = {
 
 local IS_HOPPING = false
 local espObjects = {}
+local visitedJobIds = {}
 
--- UI switch ON/OFF
+-- UI switch ON/OFF + info label
 local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 local button = Instance.new("TextButton", screenGui)
 button.Size = UDim2.new(0, 200, 0, 50)
@@ -50,7 +51,16 @@ button.TextColor3 = Color3.new(1,1,1)
 button.Font = Enum.Font.SourceSansBold
 button.TextScaled = true
 
--- Limpia ESP
+local infoLabel = Instance.new("TextLabel", screenGui)
+infoLabel.Size = UDim2.new(0, 500, 0, 40)
+infoLabel.Position = UDim2.new(0.1, 0, 0.17, 0)
+infoLabel.BackgroundTransparency = 0.5
+infoLabel.BackgroundColor3 = Color3.fromRGB(30,30,30)
+infoLabel.TextColor3 = Color3.fromRGB(0,255,100)
+infoLabel.Font = Enum.Font.SourceSansBold
+infoLabel.TextScaled = true
+infoLabel.Text = "JobIds visitados: 0 | Actual: " .. tostring(game.JobId)
+
 local function clearESP()
     for _, v in ipairs(espObjects) do
         if v and v.Parent then
@@ -60,7 +70,6 @@ local function clearESP()
     espObjects = {}
 end
 
--- Devuelve la Part principal de un Model o la Part directamente
 local function getAdorneePart(obj)
     if obj:IsA("BasePart") then
         return obj
@@ -75,7 +84,6 @@ local function getAdorneePart(obj)
     return nil
 end
 
--- ESP visual
 local function createESP(brainrotName)
     for _, v in ipairs(workspace:GetChildren()) do
         if v.Name == brainrotName or v.Name:find(brainrotName) then
@@ -114,7 +122,6 @@ local function createESP(brainrotName)
     end
 end
 
--- Scan server actual
 local function scanCurrentServer()
     local found = {}
     local eventsFolder = LocalPlayer.PlayerGui:FindFirstChild("ActiveEvents")
@@ -129,7 +136,6 @@ local function scanCurrentServer()
     return found
 end
 
--- ESP masivo
 local function espAllBrainrots(brainrotList)
     clearESP()
     for _, name in ipairs(brainrotList) do
@@ -157,7 +163,13 @@ local function getServerList()
     return ids
 end
 
--- Server hop REAL loop
+local function countTable(t)
+    local c = 0
+    for _ in pairs(t) do c = c + 1 end
+    return c
+end
+
+-- Server hop REAL loop con antiloop
 local function hopLoop()
     print("🧠 Iniciando Server Hop Brainrots PREMIUM REAL...")
     local serverList = getServerList()
@@ -171,30 +183,37 @@ local function hopLoop()
             clearESP()
             return
         end
+        if visitedJobIds[serverId] then
+            print("⚠️ Ya visitaste este JobId, saltando al siguiente...")
+            goto continue
+        end
+        visitedJobIds[serverId] = true
+        infoLabel.Text = "JobIds visitados: " .. tostring(countTable(visitedJobIds)) .. " | Actual: " .. tostring(serverId)
         print("🌎 Saltando a server: " .. serverId)
         TeleportService:TeleportToPlaceInstance(PLACE_ID, serverId, LocalPlayer)
         wait(10)
         local found = scanCurrentServer()
         if #found > 0 then
-            print("🎉 Brainrot PREMIUM encontrado:")
+            print("🎉 Brainrot PREMIUM/GOD encontrado:")
             for _, name in ipairs(found) do
                 print("   • " .. name)
             end
             espAllBrainrots(found)
+            infoLabel.Text = "🎉 Encontrado: " .. table.concat(found, ", ") .. " | JobId: " .. tostring(serverId)
             print("✅ Te quedaste en este server. ESP ACTIVADO.")
             IS_HOPPING = false
             button.Text = "Server Hop: OFF"
             button.BackgroundColor3 = Color3.new(0.3,0.3,0.3)
-            return
+            break
         else
             clearESP()
         end
+        ::continue::
         wait(1)
     end
     print("🧠 Fin del Server Hop REAL.")
 end
 
--- Botón ON/OFF
 button.MouseButton1Click:Connect(function()
     IS_HOPPING = not IS_HOPPING
     if IS_HOPPING then
@@ -210,4 +229,4 @@ button.MouseButton1Click:Connect(function()
     end
 end)
 
-print("✅ Script REAL listo. Toca el botón para activar/desactivar el Server Hop REAL automático. El ESP marcará los brainrots premium/god cuando los encuentre.")
+print("✅ Script REAL con antiloop listo. Toca el botón para activar/desactivar el Server Hop REAL automático. El ESP marcará los brainrots premium/god cuando los encuentre y evitará repetir servidores.")
