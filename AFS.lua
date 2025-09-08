@@ -1,12 +1,4 @@
---[[
-Script: TrainStatUI.lua
-Description: Roblox Lua script that creates a UI with switches to "Train Sword" and "Train Speed".
-- "Train Sword" switch: When ON, simulates the click on the SwordButton and equips the sword (using remote event).
-- "Train Speed" switch: When ON, fires the remote event for Speed.
-- Each stat trains every 4 seconds while ON.
-- Nerfs/Buffs can be customized (as described).
-Place this script in StarterGui or StarterPlayerScripts as appropriate.
-]]
+-- TrainStatUI - Script para entrenar Sword y Speed con switches y UI movible
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -15,8 +7,6 @@ local player = Players.LocalPlayer
 -- RemoteEvents
 local EquipStatUpdateEvent = ReplicatedStorage:WaitForChild("Event"):WaitForChild("EquipStatUpdateEvent")
 local ShowStatEffect = ReplicatedStorage:WaitForChild("Event"):WaitForChild("ShowStatEffect")
-local SummonChampion = ReplicatedStorage:WaitForChild("Event"):WaitForChild("SummonChampion")
-local UpdateQuestProgressGui = ReplicatedStorage:WaitForChild("Event"):WaitForChild("UpdateQuestProgressGui")
 
 -- UI Creation
 local ScreenGui = Instance.new("ScreenGui")
@@ -27,6 +17,8 @@ local Frame = Instance.new("Frame")
 Frame.Size = UDim2.new(0, 250, 0, 150)
 Frame.Position = UDim2.new(0.5, -125, 0.5, -75)
 Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Frame.Active = true -- Necesario para drag
+Frame.Draggable = true -- Hace la UI movible
 Frame.Parent = ScreenGui
 
 local Title = Instance.new("TextLabel")
@@ -63,37 +55,23 @@ SpeedSwitch.Parent = Frame
 local swordActive = false
 local speedActive = false
 
--- SwordButton Path (change as needed to match your actual UI)
-local swordButtonPath = player.PlayerGui:FindFirstChild("Main")
-  and player.PlayerGui.Main:FindFirstChild("Category")
-  and player.PlayerGui.Main.Category:FindFirstChild("Hotkeys")
-  and player.PlayerGui.Main.Category.Hotkeys:FindFirstChild("SwordButton") or nil
-
 -- Train Logic
 local function trainSword()
     if swordActive then
-        -- Simulate click on SwordButton UI
-        if swordButtonPath then
-            swordButtonPath:Activate()
-        end
-        -- Equip Sword via remote event
+        -- Equip Sword via remote event (NO .Activate!)
         EquipStatUpdateEvent:FireServer("Sword")
-        -- Special buffs/nerfs (example)
-        -- Nerf Chakra damage by 30, buff by 20, buff Sword Styles by 25, nerf by 20
-        -- You can implement this logic server-side if needed
     end
 end
 
 local function trainSpeed()
     if speedActive then
-        -- Activate speed stat via remote event
+        -- Activa speed via remote event
         EquipStatUpdateEvent:FireServer("Speed")
-        -- Show stat effect (visual feedback)
         ShowStatEffect:FireServer("Speed", 1)
     end
 end
 
--- Every 4 seconds loop for both stats
+-- Loop cada 4 segundos
 spawn(function()
     while true do
         if swordActive then trainSword() end
@@ -113,11 +91,14 @@ SpeedSwitch.MouseButton1Click:Connect(function()
     SpeedSwitch.Text = speedActive and "Train Speed [ON]" or "Train Speed [OFF]"
 end)
 
--- Optional: UI drag
-local dragging, dragInput, dragStart, startPos
+-- DRAG UI (para compatibilidad universal, si Draggable da problemas en dispositivos móviles)
+local dragging
+local dragInput
+local dragStart
+local startPos
 
 Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = Frame.Position
@@ -130,7 +111,7 @@ Frame.InputBegan:Connect(function(input)
 end)
 
 Frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - dragStart
         Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
