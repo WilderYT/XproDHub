@@ -1,14 +1,13 @@
--- TrainStatUI - Script para entrenar Sword y Speed con switches y UI movible
-
+-- UI para entrenar Sword y Speed con switches y drag manual
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 -- RemoteEvents
-local EquipStatUpdateEvent = ReplicatedStorage:WaitForChild("Event"):WaitForChild("EquipStatUpdateEvent")
-local ShowStatEffect = ReplicatedStorage:WaitForChild("Event"):WaitForChild("ShowStatEffect")
+local EquipStatUpdateEvent = ReplicatedStorage:WaitForChild("Event"):FindFirstChild("EquipStatUpdateEvent") -- Cambia el nombre si el RemoteEvent es diferente
+local SpeedTrainingEvent = ReplicatedStorage:FindFirstChild("RemoteEvents") and ReplicatedStorage.RemoteEvents:FindFirstChild("SpeedTrainingEvent")
 
--- UI Creation
+-- UI creation
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "TrainStatUI"
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
@@ -17,8 +16,7 @@ local Frame = Instance.new("Frame")
 Frame.Size = UDim2.new(0, 250, 0, 150)
 Frame.Position = UDim2.new(0.5, -125, 0.5, -75)
 Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Frame.Active = true -- Necesario para drag
-Frame.Draggable = true -- Hace la UI movible
+Frame.Active = true
 Frame.Parent = ScreenGui
 
 local Title = Instance.new("TextLabel")
@@ -55,27 +53,41 @@ SpeedSwitch.Parent = Frame
 local swordActive = false
 local speedActive = false
 
--- Train Logic
+-- Sword training (no UI click, solo RemoteEvent)
 local function trainSword()
-    if swordActive then
-        -- Equip Sword via remote event (NO .Activate!)
+    if swordActive and EquipStatUpdateEvent then
         EquipStatUpdateEvent:FireServer("Sword")
     end
 end
 
-local function trainSpeed()
-    if speedActive then
-        -- Activa speed via remote event
-        EquipStatUpdateEvent:FireServer("Speed")
-        ShowStatEffect:FireServer("Speed", 1)
+-- Speed training (caminar y disparar remote)
+getgenv().XproD_TrainSpeed = false
+local speedFarmThread = nil
+
+local function speedFarmLoop()
+    local player = Players.LocalPlayer
+    local humanoid = nil
+    while getgenv().XproD_TrainSpeed do
+        humanoid = player.Character and player.Character:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            humanoid:Move(Vector3.new(0,0,1), true) -- Camina recto
+        end
+        if SpeedTrainingEvent then
+            pcall(function()
+                SpeedTrainingEvent:FireServer(true)
+            end)
+        end
+        task.wait()
+    end
+    if humanoid then
+        humanoid:Move(Vector3.new(0,0,0), true) -- Para al detener
     end
 end
 
--- Loop cada 4 segundos
+-- Loop Sword cada 4 segundos
 spawn(function()
     while true do
         if swordActive then trainSword() end
-        if speedActive then trainSpeed() end
         wait(4)
     end
 end)
@@ -89,13 +101,14 @@ end)
 SpeedSwitch.MouseButton1Click:Connect(function()
     speedActive = not speedActive
     SpeedSwitch.Text = speedActive and "Train Speed [ON]" or "Train Speed [OFF]"
+    getgenv().XproD_TrainSpeed = speedActive
+    if speedActive and not speedFarmThread then
+        speedFarmThread = task.spawn(speedFarmLoop)
+    end
 end)
 
--- DRAG UI (para compatibilidad universal, si Draggable da problemas en dispositivos móviles)
-local dragging
-local dragInput
-local dragStart
-local startPos
+-- DRAG UI (universal, para PC y móvil)
+local dragging, dragInput, dragStart, startPos
 
 Frame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
