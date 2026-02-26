@@ -1,12 +1,17 @@
--- Flight Script with GUI | By: Script
--- Compatible con Delta Executor
+-- ╔══════════════════════════════╗
+-- ║   FLY SCRIPT - Delta Ready   ║
+-- ║   GUI con ON/OFF + Velocidad ║
+-- ╚══════════════════════════════╝
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
+
+-- Esperar el character correctamente
+repeat task.wait() until player.Character
+local character = player.Character
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 local humanoid = character:WaitForChild("Humanoid")
 
@@ -14,10 +19,10 @@ local flying = false
 local flySpeed = 50
 local bodyVelocity = nil
 local bodyGyro = nil
-local connection = nil
+local flyConnection = nil
 
 -- ══════════════════════════════
---         FUNCIONES VUELO
+--       FUNCIONES DE VUELO
 -- ══════════════════════════════
 
 local function enableFly()
@@ -35,181 +40,160 @@ local function enableFly()
     bodyGyro.P = 1000
     bodyGyro.Parent = humanoidRootPart
 
-    connection = RunService.RenderStepped:Connect(function()
+    flyConnection = RunService.RenderStepped:Connect(function()
         if not flying then return end
+        local cam = workspace.CurrentCamera
+        local dir = Vector3.zero
 
-        local camera = workspace.CurrentCamera
-        local direction = Vector3.zero
-        local cf = camera.CFrame
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.new(0,1,0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.new(0,1,0) end
 
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-            direction = direction + cf.LookVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-            direction = direction - cf.LookVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-            direction = direction - cf.RightVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-            direction = direction + cf.RightVector
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            direction = direction + Vector3.new(0, 1, 0)
-        end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-            direction = direction - Vector3.new(0, 1, 0)
-        end
-
-        if direction.Magnitude > 0 then
-            direction = direction.Unit
-        end
-
-        bodyVelocity.Velocity = direction * flySpeed
-        bodyGyro.CFrame = cf
+        bodyVelocity.Velocity = (dir.Magnitude > 0 and dir.Unit * flySpeed or Vector3.zero)
+        bodyGyro.CFrame = cam.CFrame
     end)
 end
 
 local function disableFly()
     flying = false
     humanoid.PlatformStand = false
-
-    if bodyVelocity then bodyVelocity:Destroy() end
-    if bodyGyro then bodyGyro:Destroy() end
-    if connection then connection:Disconnect() end
+    if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
+    if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
+    if flyConnection then flyConnection:Disconnect() flyConnection = nil end
 end
 
 -- ══════════════════════════════
---           GUI
+--     GUI - COMPATIBLE DELTA
 -- ══════════════════════════════
 
+-- Limpiar GUI previa si existe
+local oldGui = (gethui and gethui() or game:GetService("CoreGui")):FindFirstChild("DeltaFlyGUI")
+if oldGui then oldGui:Destroy() end
+
+-- Parent correcto para executors
+local guiParent = (gethui and gethui()) or game:GetService("CoreGui")
+
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "FlyGUI"
+screenGui.Name = "DeltaFlyGUI"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = player.PlayerGui
+pcall(function() screenGui.DisplayOrder = 999 end)
+screenGui.Parent = guiParent
 
--- Frame principal
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 220, 0, 180)
-mainFrame.Position = UDim2.new(0, 20, 0.5, -90)
-mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = screenGui
+-- Marco principal
+local frame = Instance.new("Frame")
+frame.Name = "MainFrame"
+frame.Size = UDim2.new(0, 230, 0, 190)
+frame.Position = UDim2.new(0, 20, 0.4, 0)
+frame.BackgroundColor3 = Color3.fromRGB(15, 15, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
 
--- Esquinas redondeadas
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = mainFrame
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
 
--- Stroke (borde)
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(100, 80, 255)
+local stroke = Instance.new("UIStroke", frame)
+stroke.Color = Color3.fromRGB(110, 80, 255)
 stroke.Thickness = 2
-stroke.Parent = mainFrame
 
--- Título
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundColor3 = Color3.fromRGB(30, 20, 60)
-title.BorderSizePixel = 0
-title.Text = "✈  FLY SCRIPT"
-title.TextColor3 = Color3.fromRGB(180, 150, 255)
-title.TextSize = 16
-title.Font = Enum.Font.GothamBold
-title.Parent = mainFrame
+-- Barra de título
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 42)
+titleBar.BackgroundColor3 = Color3.fromRGB(30, 20, 55)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = frame
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 14)
 
-local titleCorner = Instance.new("UICorner")
-titleCorner.CornerRadius = UDim.new(0, 12)
-titleCorner.Parent = title
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "✈  FLY SCRIPT"
+titleLabel.TextColor3 = Color3.fromRGB(190, 160, 255)
+titleLabel.TextSize = 15
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = titleBar
 
--- Label estado
+-- Estado
 local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(1, 0, 0, 30)
-statusLabel.Position = UDim2.new(0, 0, 0, 45)
+statusLabel.Size = UDim2.new(1, 0, 0, 28)
+statusLabel.Position = UDim2.new(0, 0, 0, 47)
 statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Estado: OFF"
+statusLabel.Text = "● Estado: OFF"
 statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-statusLabel.TextSize = 14
+statusLabel.TextSize = 13
 statusLabel.Font = Enum.Font.GothamSemibold
-statusLabel.Parent = mainFrame
+statusLabel.Parent = frame
 
--- Botón ON/OFF
+-- Botón toggle
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0.85, 0, 0, 36)
-toggleBtn.Position = UDim2.new(0.075, 0, 0, 82)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+toggleBtn.Size = UDim2.new(0, 180, 0, 38)
+toggleBtn.Position = UDim2.new(0.5, -90, 0, 82)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 toggleBtn.Text = "ACTIVAR VUELO"
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 14
+toggleBtn.TextSize = 13
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.BorderSizePixel = 0
-toggleBtn.Parent = mainFrame
-
-local btnCorner = Instance.new("UICorner")
-btnCorner.CornerRadius = UDim.new(0, 8)
-btnCorner.Parent = toggleBtn
+toggleBtn.Parent = frame
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 9)
 
 -- Label velocidad
 local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1, 0, 0, 25)
-speedLabel.Position = UDim2.new(0, 0, 0, 128)
+speedLabel.Size = UDim2.new(1, 0, 0, 24)
+speedLabel.Position = UDim2.new(0, 0, 0, 130)
 speedLabel.BackgroundTransparency = 1
 speedLabel.Text = "Velocidad: " .. flySpeed
 speedLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
 speedLabel.TextSize = 13
 speedLabel.Font = Enum.Font.Gotham
-speedLabel.Parent = mainFrame
+speedLabel.Parent = frame
 
--- Botones velocidad
+-- Botón MENOS
 local minusBtn = Instance.new("TextButton")
-minusBtn.Size = UDim2.new(0, 50, 0, 30)
-minusBtn.Position = UDim2.new(0.08, 0, 0, 148)
-minusBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
-minusBtn.Text = "  -  "
+minusBtn.Size = UDim2.new(0, 60, 0, 32)
+minusBtn.Position = UDim2.new(0, 20, 0, 158)
+minusBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 110)
+minusBtn.Text = "−"
 minusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-minusBtn.TextSize = 18
+minusBtn.TextSize = 20
 minusBtn.Font = Enum.Font.GothamBold
 minusBtn.BorderSizePixel = 0
-minusBtn.Parent = mainFrame
+minusBtn.Parent = frame
+Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 8)
 
-local minusCorner = Instance.new("UICorner")
-minusCorner.CornerRadius = UDim.new(0, 8)
-minusCorner.Parent = minusBtn
-
+-- Botón MAS
 local plusBtn = Instance.new("TextButton")
-plusBtn.Size = UDim2.new(0, 50, 0, 30)
-plusBtn.Position = UDim2.new(0.62, 0, 0, 148)
-plusBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
-plusBtn.Text = "  +  "
+plusBtn.Size = UDim2.new(0, 60, 0, 32)
+plusBtn.Position = UDim2.new(1, -80, 0, 158)
+plusBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 110)
+plusBtn.Text = "+"
 plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-plusBtn.TextSize = 18
+plusBtn.TextSize = 20
 plusBtn.Font = Enum.Font.GothamBold
 plusBtn.BorderSizePixel = 0
-plusBtn.Parent = mainFrame
-
-local plusCorner = Instance.new("UICorner")
-plusCorner.CornerRadius = UDim.new(0, 8)
-plusCorner.Parent = plusBtn
+plusBtn.Parent = frame
+Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 8)
 
 -- ══════════════════════════════
---         LÓGICA BOTONES
+--        EVENTOS BOTONES
 -- ══════════════════════════════
 
 toggleBtn.MouseButton1Click:Connect(function()
     if not flying then
         enableFly()
         toggleBtn.Text = "DESACTIVAR VUELO"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(80, 200, 80)
-        statusLabel.Text = "Estado: ON ✔"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
+        statusLabel.Text = "● Estado: ON"
         statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
     else
         disableFly()
         toggleBtn.Text = "ACTIVAR VUELO"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-        statusLabel.Text = "Estado: OFF"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        statusLabel.Text = "● Estado: OFF"
         statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
     end
 end)
@@ -217,9 +201,6 @@ end)
 plusBtn.MouseButton1Click:Connect(function()
     flySpeed = math.clamp(flySpeed + 10, 10, 500)
     speedLabel.Text = "Velocidad: " .. flySpeed
-    if bodyVelocity then
-        -- se actualiza automáticamente en el loop
-    end
 end)
 
 minusBtn.MouseButton1Click:Connect(function()
@@ -227,14 +208,17 @@ minusBtn.MouseButton1Click:Connect(function()
     speedLabel.Text = "Velocidad: " .. flySpeed
 end)
 
--- Re-obtener character si respawnea
+-- Reset al respawnear
 player.CharacterAdded:Connect(function(char)
     character = char
     humanoidRootPart = char:WaitForChild("HumanoidRootPart")
     humanoid = char:WaitForChild("Humanoid")
     flying = false
+    flyConnection = nil
     toggleBtn.Text = "ACTIVAR VUELO"
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-    statusLabel.Text = "Estado: OFF"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    statusLabel.Text = "● Estado: OFF"
     statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
 end)
+
+print("[FlyScript] Cargado correctamente ✓")
