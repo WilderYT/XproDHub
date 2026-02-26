@@ -1,66 +1,79 @@
--- ╔═══════════════════════════════════════╗
--- ║     SUPERHERO FLY - Delta Ready       ║
--- ║   Vuelo cinematico con inclinacion    ║
--- ╚═══════════════════════════════════════╝
+-- ╔═══════════════════════════════════════════╗
+-- ║       SUPERHERO FLY - Mobile Ready        ║
+-- ║           by: Smith                       ║
+-- ╚═══════════════════════════════════════════╝
 
-local Players        = game:GetService("Players")
-local RunService     = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService   = game:GetService("TweenService")
+local Players           = game:GetService("Players")
+local RunService        = game:GetService("RunService")
+local UserInputService  = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
 
-local player = Players.LocalPlayer
+local player  = Players.LocalPlayer
 repeat task.wait() until player.Character
-local character       = player.Character
-local root            = character:WaitForChild("HumanoidRootPart")
-local humanoid        = character:WaitForChild("Humanoid")
-local animator        = humanoid:WaitForChild("Animator")
+local character = player.Character
+local root      = character:WaitForChild("HumanoidRootPart")
+local humanoid  = character:WaitForChild("Humanoid")
 
 -- ══════════════════════════════════════════
 --              CONFIGURACIÓN
 -- ══════════════════════════════════════════
 local CFG = {
-    speed        = 80,       -- velocidad base
+    speed        = 60,
     maxSpeed     = 500,
     minSpeed     = 10,
     speedStep    = 10,
-    acceleration = 0.18,     -- qué tan rápido acelera  (0-1)
-    tiltAngle    = 55,       -- grados de inclinación al volar
-    tiltSpeed    = 0.12,     -- suavidad de la inclinación
+    acceleration = 0.14,
+    tiltAngle    = 60,
 }
 
 -- ══════════════════════════════════════════
---              ESTADO
+--              ESTADO GLOBAL
 -- ══════════════════════════════════════════
-local flying        = false
-local velocity      = Vector3.zero   -- velocidad actual suavizada
-local bv, bg        = nil, nil
-local flyConn       = nil
+local flying   = false
+local velocity = Vector3.zero
+local joystick = Vector2.zero   -- input del thumbstick izquierdo
+local bv, bg, flyConn = nil, nil, nil
 
 -- ══════════════════════════════════════════
---          FUNCIONES AUXILIARES
+--        CAPTURA JOYSTICK MÓVIL
 -- ══════════════════════════════════════════
 
-local function lerp(a, b, t)
-    return a + (b - a) * t
-end
+-- Capturamos el ThumbstickMoved nativamente
+UserInputService.InputChanged:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Thumbstick1 then
+        joystick = Vector2.new(input.Position.X, input.Position.Y)
+    end
+end)
 
-local function lerpV3(a, b, t)
-    return Vector3.new(lerp(a.X,b.X,t), lerp(a.Y,b.Y,t), lerp(a.Z,b.Z,t))
-end
+-- ══════════════════════════════════════════
+--         DIRECCIÓN DE MOVIMIENTO
+-- ══════════════════════════════════════════
 
-local function getCamDirection()
+local function getDirection()
     local cam = workspace.CurrentCamera
     local dir = Vector3.zero
-    local cf  = cam.CFrame
 
+    -- ── Joystick móvil ─────────────────────
+    if joystick.Magnitude > 0.1 then
+        local flat = (cam.CFrame.LookVector * Vector3.new(1,0,1)).Unit
+        local right = (cam.CFrame.RightVector * Vector3.new(1,0,1)).Unit
+        dir = (flat * joystick.Y + right * joystick.X)
+    end
+
+    -- ── Teclado (PC fallback) ───────────────
+    local cf = cam.CFrame
     if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cf.LookVector end
     if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cf.LookVector end
     if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cf.RightVector end
     if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cf.RightVector end
-    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+
+    -- Subir / bajar
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) or
+       UserInputService:IsKeyDown(Enum.KeyCode.ButtonA) then
         dir += Vector3.new(0, 1, 0)
     end
-    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or
+       UserInputService:IsKeyDown(Enum.KeyCode.ButtonB) then
         dir -= Vector3.new(0, 1, 0)
     end
 
@@ -68,17 +81,16 @@ local function getCamDirection()
 end
 
 -- ══════════════════════════════════════════
---          LÓGICA DE VUELO PRINCIPAL
+--          VUELO SUPERHÉROE
 -- ══════════════════════════════════════════
+
+local function lerpV3(a, b, t)
+    return a + (b - a) * t
+end
 
 local function enableFly()
     flying = true
     humanoid.PlatformStand = true
-
-    -- Forzar animación idle/stop del humanoid
-    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-        track:Stop(0.1)
-    end
 
     bv = Instance.new("BodyVelocity")
     bv.Velocity  = Vector3.zero
@@ -87,47 +99,40 @@ local function enableFly()
 
     bg = Instance.new("BodyGyro")
     bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-    bg.D         = 200
-    bg.P         = 2000
+    bg.D         = 150
+    bg.P         = 3000
     bg.CFrame    = root.CFrame
     bg.Parent    = root
 
-    flyConn = RunService.RenderStepped:Connect(function(dt)
+    flyConn = RunService.RenderStepped:Connect(function()
         if not flying then return end
 
-        local cam      = workspace.CurrentCamera
-        local inputDir = getCamDirection()
-        local target   = inputDir.Magnitude > 0 and inputDir.Unit * CFG.speed or Vector3.zero
+        local cam    = workspace.CurrentCamera
+        local input  = getDirection()
+        local target = input.Magnitude > 0.01
+            and input.Unit * CFG.speed
+            or  Vector3.zero
 
-        -- Suavizar velocidad (sensación de masa / inercia)
+        -- Inercia suave
         velocity = lerpV3(velocity, target, CFG.acceleration)
         bv.Velocity = velocity
 
-        -- ── Rotación superhéroe ──────────────────────────────
-        local speed2D = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+        -- Velocidad horizontal para calcular inclinación
+        local hSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
 
-        if speed2D > 2 then
-            -- Dirección horizontal de movimiento
-            local moveDir = Vector3.new(velocity.X, 0, velocity.Z).Unit
+        if hSpeed > 1.5 then
+            -- Dirección horizontal
+            local hDir    = Vector3.new(velocity.X, 0, velocity.Z).Unit
+            local lookCF  = CFrame.lookAt(root.Position, root.Position + hDir)
+            local ratio   = math.clamp(hSpeed / CFG.speed, 0, 1)
+            local tilt    = math.rad(CFG.tiltAngle) * ratio
 
-            -- CFrame mirando hacia donde vuela, luego inclinado hacia adelante
-            local lookCF   = CFrame.lookAt(root.Position, root.Position + moveDir)
-            -- Inclinar hacia adelante según velocidad (más rápido = más inclinado)
-            local tiltRatio = math.clamp(speed2D / CFG.speed, 0, 1)
-            local tilt      = math.rad(CFG.tiltAngle) * tiltRatio
-            local tiltedCF  = lookCF * CFrame.Angles(-tilt, 0, 0)
-
-            bg.CFrame = CFrame.new(root.Position) *
-                CFrame.fromMatrix(
-                    Vector3.zero,
-                    tiltedCF.RightVector,
-                    tiltedCF.UpVector,
-                    -tiltedCF.LookVector
-                )
+            -- Aplica inclinación hacia adelante (vuelo superman)
+            bg.CFrame = lookCF * CFrame.Angles(-tilt, 0, 0)
         else
-            -- Sin movimiento horizontal → posición vertical heroica
-            local upright = CFrame.new(root.Position) * CFrame.Angles(0, bg.CFrame:ToEulerAnglesYXZ() and select(2, bg.CFrame:ToEulerAnglesYXZ()) or 0, 0)
-            bg.CFrame = CFrame.new(root.Position) * CFrame.fromEulerAnglesYXZ(0, select(2, root.CFrame:ToEulerAnglesYXZ()), 0)
+            -- Hover: erguido mirando hacia la cámara
+            local _, yaw, _ = cam.CFrame:ToEulerAnglesYXZ()
+            bg.CFrame = CFrame.new(root.Position) * CFrame.fromEulerAnglesYXZ(0, yaw, 0)
         end
     end)
 end
@@ -136,13 +141,52 @@ local function disableFly()
     flying = false
     velocity = Vector3.zero
     humanoid.PlatformStand = false
-    if bv then bv:Destroy(); bv = nil end
-    if bg then bg:Destroy(); bg = nil end
-    if flyConn then flyConn:Disconnect(); flyConn = nil end
+    if bv       then bv:Destroy();        bv       = nil end
+    if bg       then bg:Destroy();        bg       = nil end
+    if flyConn  then flyConn:Disconnect(); flyConn = nil end
 end
 
 -- ══════════════════════════════════════════
---          GUI - COMPATIBLE DELTA
+--      BOTONES MÓVIL: SUBIR / BAJAR
+-- ══════════════════════════════════════════
+-- Se agregan como botones en pantalla para móvil
+
+local function createMobileBtn(guiParent, text, posX, posY, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size             = UDim2.new(0, 70, 0, 70)
+    btn.Position         = UDim2.new(posX, 0, posY, 0)
+    btn.BackgroundColor3 = Color3.fromRGB(20, 20, 50)
+    btn.Text             = text
+    btn.TextColor3       = Color3.fromRGB(255, 255, 255)
+    btn.TextSize         = 26
+    btn.Font             = Enum.Font.GothamBold
+    btn.BorderSizePixel  = 0
+    btn.ZIndex           = 10
+    btn.Parent           = guiParent
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(1, 0)
+
+    local stroke = Instance.new("UIStroke", btn)
+    stroke.Color     = Color3.fromRGB(90, 60, 230)
+    stroke.Thickness = 2
+
+    -- Mantener presionado = vuelo continuo
+    local holding = false
+    btn.MouseButton1Down:Connect(function() holding = true end)
+    btn.MouseButton1Up:Connect(function()   holding = false end)
+    btn.TouchStart:Connect(function()  holding = true end)
+    btn.TouchEnd:Connect(function()    holding = false end)
+
+    RunService.RenderStepped:Connect(function()
+        if holding and flying and bv then
+            callback()
+        end
+    end)
+
+    return btn
+end
+
+-- ══════════════════════════════════════════
+--               GUI PRINCIPAL
 -- ══════════════════════════════════════════
 
 local guiParent = (gethui and gethui()) or game:GetService("CoreGui")
@@ -156,124 +200,143 @@ sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 pcall(function() sg.DisplayOrder = 999 end)
 sg.Parent = guiParent
 
--- Marco
+-- ─── Marco principal ───────────────────────
 local frame = Instance.new("Frame")
-frame.Name            = "Main"
-frame.Size            = UDim2.new(0, 240, 0, 200)
-frame.Position        = UDim2.new(0, 18, 0.38, 0)
-frame.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
-frame.BorderSizePixel = 0
-frame.Active          = true
-frame.Draggable       = true
-frame.Parent          = sg
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+frame.Name             = "Main"
+frame.Size             = UDim2.new(0, 250, 0, 215)
+frame.Position         = UDim2.new(0, 14, 0.30, 0)
+frame.BackgroundColor3 = Color3.fromRGB(10, 8, 22)
+frame.BorderSizePixel  = 0
+frame.Active           = true
+frame.Draggable        = true
+frame.Parent           = sg
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 16)
 
-local stroke = Instance.new("UIStroke", frame)
-stroke.Color     = Color3.fromRGB(90, 60, 230)
-stroke.Thickness = 2
+local mainStroke = Instance.new("UIStroke", frame)
+mainStroke.Color     = Color3.fromRGB(100, 65, 245)
+mainStroke.Thickness = 2
 
--- Header
+-- ─── Header ────────────────────────────────
 local header = Instance.new("Frame")
-header.Size            = UDim2.new(1, 0, 0, 44)
-header.BackgroundColor3 = Color3.fromRGB(25, 15, 55)
-header.BorderSizePixel = 0
-header.Parent          = frame
-Instance.new("UICorner", header).CornerRadius = UDim.new(0, 14)
+header.Size             = UDim2.new(1, 0, 0, 48)
+header.BackgroundColor3 = Color3.fromRGB(22, 12, 55)
+header.BorderSizePixel  = 0
+header.Parent           = frame
+Instance.new("UICorner", header).CornerRadius = UDim.new(0, 16)
 
 local titleLbl = Instance.new("TextLabel")
-titleLbl.Size              = UDim2.new(1, 0, 1, 0)
+titleLbl.Size                = UDim2.new(1, 0, 0, 28)
+titleLbl.Position            = UDim2.new(0, 0, 0, 4)
 titleLbl.BackgroundTransparency = 1
-titleLbl.Text              = "🦸  SUPERHERO FLY"
-titleLbl.TextColor3        = Color3.fromRGB(180, 140, 255)
-titleLbl.TextSize          = 15
-titleLbl.Font              = Enum.Font.GothamBold
-titleLbl.Parent            = header
+titleLbl.Text                = "🦸  SUPERHERO FLY"
+titleLbl.TextColor3          = Color3.fromRGB(185, 145, 255)
+titleLbl.TextSize             = 15
+titleLbl.Font                = Enum.Font.GothamBold
+titleLbl.Parent              = header
 
--- Estado
+local creditLbl = Instance.new("TextLabel")
+creditLbl.Size                = UDim2.new(1, 0, 0, 16)
+creditLbl.Position            = UDim2.new(0, 0, 0, 30)
+creditLbl.BackgroundTransparency = 1
+creditLbl.Text                = "by: Smith"
+creditLbl.TextColor3          = Color3.fromRGB(130, 100, 200)
+creditLbl.TextSize            = 11
+creditLbl.Font                = Enum.Font.GothamSemibold
+creditLbl.Parent              = header
+
+-- ─── Estado ────────────────────────────────
 local statusLbl = Instance.new("TextLabel")
-statusLbl.Size              = UDim2.new(1, -20, 0, 26)
-statusLbl.Position          = UDim2.new(0, 10, 0, 50)
+statusLbl.Size                = UDim2.new(1, -20, 0, 26)
+statusLbl.Position            = UDim2.new(0, 10, 0, 54)
 statusLbl.BackgroundTransparency = 1
-statusLbl.Text              = "⬤  Estado: APAGADO"
-statusLbl.TextXAlignment    = Enum.TextXAlignment.Left
-statusLbl.TextColor3        = Color3.fromRGB(255, 70, 70)
-statusLbl.TextSize          = 13
-statusLbl.Font              = Enum.Font.GothamSemibold
-statusLbl.Parent            = frame
+statusLbl.Text                = "⬤  Estado: APAGADO"
+statusLbl.TextXAlignment      = Enum.TextXAlignment.Left
+statusLbl.TextColor3          = Color3.fromRGB(255, 70, 70)
+statusLbl.TextSize            = 13
+statusLbl.Font                = Enum.Font.GothamSemibold
+statusLbl.Parent              = frame
 
--- Toggle button
+-- ─── Toggle ────────────────────────────────
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size            = UDim2.new(0, 200, 0, 40)
-toggleBtn.Position        = UDim2.new(0.5, -100, 0, 83)
-toggleBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-toggleBtn.Text            = "▶  ACTIVAR VUELO"
-toggleBtn.TextColor3      = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize        = 13
-toggleBtn.Font            = Enum.Font.GothamBold
-toggleBtn.BorderSizePixel = 0
-toggleBtn.Parent          = frame
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 10)
+toggleBtn.Size             = UDim2.new(0, 210, 0, 42)
+toggleBtn.Position         = UDim2.new(0.5, -105, 0, 86)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(175, 35, 35)
+toggleBtn.Text             = "▶  ACTIVAR VUELO"
+toggleBtn.TextColor3       = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize         = 13
+toggleBtn.Font             = Enum.Font.GothamBold
+toggleBtn.BorderSizePixel  = 0
+toggleBtn.Parent           = frame
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 11)
 
--- Velocidad label
+-- ─── Velocidad ─────────────────────────────
 local speedLbl = Instance.new("TextLabel")
-speedLbl.Size              = UDim2.new(1, -20, 0, 24)
-speedLbl.Position          = UDim2.new(0, 10, 0, 135)
+speedLbl.Size                = UDim2.new(1, -20, 0, 24)
+speedLbl.Position            = UDim2.new(0, 10, 0, 140)
 speedLbl.BackgroundTransparency = 1
-speedLbl.Text              = "Velocidad: " .. CFG.speed
-speedLbl.TextXAlignment    = Enum.TextXAlignment.Center
-speedLbl.TextColor3        = Color3.fromRGB(180, 180, 255)
-speedLbl.TextSize          = 13
-speedLbl.Font              = Enum.Font.Gotham
-speedLbl.Parent            = frame
+speedLbl.Text                = "Velocidad: " .. CFG.speed
+speedLbl.TextXAlignment      = Enum.TextXAlignment.Center
+speedLbl.TextColor3          = Color3.fromRGB(180, 180, 255)
+speedLbl.TextSize            = 13
+speedLbl.Font                = Enum.Font.Gotham
+speedLbl.Parent              = frame
 
--- Botón −
-local minusBtn = Instance.new("TextButton")
-minusBtn.Size            = UDim2.new(0, 70, 0, 34)
-minusBtn.Position        = UDim2.new(0, 15, 0, 162)
-minusBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 100)
-minusBtn.Text            = "−"
-minusBtn.TextColor3      = Color3.fromRGB(255, 255, 255)
-minusBtn.TextSize        = 22
-minusBtn.Font            = Enum.Font.GothamBold
-minusBtn.BorderSizePixel = 0
-minusBtn.Parent          = frame
-Instance.new("UICorner", minusBtn).CornerRadius = UDim.new(0, 9)
-
--- Botón +
-local plusBtn = Instance.new("TextButton")
-plusBtn.Size            = UDim2.new(0, 70, 0, 34)
-plusBtn.Position        = UDim2.new(1, -85, 0, 162)
-plusBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 100)
-plusBtn.Text            = "+"
-plusBtn.TextColor3      = Color3.fromRGB(255, 255, 255)
-plusBtn.TextSize        = 22
-plusBtn.Font            = Enum.Font.GothamBold
-plusBtn.BorderSizePixel = 0
-plusBtn.Parent          = frame
-Instance.new("UICorner", plusBtn).CornerRadius = UDim.new(0, 9)
-
--- ══════════════════════════════════════════
---             EVENTOS BOTONES
--- ══════════════════════════════════════════
-
-local function setFlyOn()
-    enableFly()
-    toggleBtn.Text            = "⏹  DESACTIVAR VUELO"
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 40)
-    statusLbl.Text            = "⬤  Estado: VOLANDO"
-    statusLbl.TextColor3      = Color3.fromRGB(60, 255, 60)
+-- ─── Botones − y + ─────────────────────────
+local function makeSpeedBtn(txt, posX)
+    local b = Instance.new("TextButton")
+    b.Size             = UDim2.new(0, 75, 0, 36)
+    b.Position         = UDim2.new(posX, 0, 0, 168)
+    b.BackgroundColor3 = Color3.fromRGB(35, 35, 95)
+    b.Text             = txt
+    b.TextColor3       = Color3.fromRGB(255, 255, 255)
+    b.TextSize         = 22
+    b.Font             = Enum.Font.GothamBold
+    b.BorderSizePixel  = 0
+    b.Parent           = frame
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    return b
 end
 
-local function setFlyOff()
+local minusBtn = makeSpeedBtn("−", 0.08)
+local plusBtn  = makeSpeedBtn("+", 0.62)
+
+-- ─── Botones subir/bajar móvil ──────────────
+-- Aparecen a la derecha de la pantalla cuando vuela
+local upBtn   = createMobileBtn(sg, "▲", 0.88, 0.62, function()
+    if bv then bv.Velocity = bv.Velocity + Vector3.new(0, 8, 0) end
+end)
+local downBtn = createMobileBtn(sg, "▼", 0.88, 0.74, function()
+    if bv then bv.Velocity = bv.Velocity - Vector3.new(0, 8, 0) end
+end)
+upBtn.Visible   = false
+downBtn.Visible = false
+
+-- ══════════════════════════════════════════
+--              EVENTOS
+-- ══════════════════════════════════════════
+
+local function setOn()
+    enableFly()
+    toggleBtn.Text             = "⏹  DESACTIVAR VUELO"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(35, 155, 35)
+    statusLbl.Text             = "⬤  Estado: VOLANDO"
+    statusLbl.TextColor3       = Color3.fromRGB(60, 255, 60)
+    upBtn.Visible              = true
+    downBtn.Visible            = true
+end
+
+local function setOff()
     disableFly()
-    toggleBtn.Text            = "▶  ACTIVAR VUELO"
-    toggleBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-    statusLbl.Text            = "⬤  Estado: APAGADO"
-    statusLbl.TextColor3      = Color3.fromRGB(255, 70, 70)
+    toggleBtn.Text             = "▶  ACTIVAR VUELO"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(175, 35, 35)
+    statusLbl.Text             = "⬤  Estado: APAGADO"
+    statusLbl.TextColor3       = Color3.fromRGB(255, 70, 70)
+    upBtn.Visible              = false
+    downBtn.Visible            = false
 end
 
 toggleBtn.MouseButton1Click:Connect(function()
-    if not flying then setFlyOn() else setFlyOff() end
+    if not flying then setOn() else setOff() end
 end)
 
 plusBtn.MouseButton1Click:Connect(function()
@@ -286,15 +349,14 @@ minusBtn.MouseButton1Click:Connect(function()
     speedLbl.Text = "Velocidad: " .. CFG.speed
 end)
 
--- Respawn
 player.CharacterAdded:Connect(function(char)
     character = char
     root      = char:WaitForChild("HumanoidRootPart")
     humanoid  = char:WaitForChild("Humanoid")
-    animator  = humanoid:WaitForChild("Animator")
     flying    = false
     velocity  = Vector3.zero
-    setFlyOff()
+    joystick  = Vector2.zero
+    setOff()
 end)
 
-print("[HeroFly] ✓ Script cargado correctamente")
+print("[HeroFly by Smith] ✓ Listo")
