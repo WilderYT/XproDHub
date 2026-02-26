@@ -1,327 +1,240 @@
--- AutoTrainSpeed.client.lua
--- LocalScript para crear UI con switches on/off que intentan actualizar valores en workspace.
--- Colocar este LocalScript dentro de StarterGui.
+-- Flight Script with GUI | By: Script
+-- Compatible con Delta Executor
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
 
--- Config: las rutas solicitadas (exactamente como las diste).
-local targets = {
-    { key = "IlhaPrincSpeed", path = "workspace.Map.Mapa.IlhaPrinc.Speed", label = "IlhaPrinc.Speed" },
-    { key = "AreaASpeed",   path = "workspace.TrainingAreas.AreaA.Speed",    label = "TrainingAreas.AreaA.Speed" },
-    { key = "ClicksAgility",path = "workspace.Xprodnow.ClicksAgilitySpeedStatus", label = "Xprodnow.ClicksAgilitySpeedStatus" },
-}
+local flying = false
+local flySpeed = 50
+local bodyVelocity = nil
+local bodyGyro = nil
+local connection = nil
 
--- Estado
-local enabled = {}
-local coroutines = {}
-local defaultSpeedValue = 100 -- valor por defecto si el usuario no pone nada
+-- ══════════════════════════════
+--         FUNCIONES VUELO
+-- ══════════════════════════════
 
-for _, t in ipairs(targets) do
-    enabled[t.key] = false
-end
+local function enableFly()
+    flying = true
+    humanoid.PlatformStand = true
 
--- Utility: resolver una ruta tipo "workspace.Map.Mapa.IlhaPrinc.Speed"
-local function resolvePath(pathStr)
-    local parts = {}
-    for part in string.gmatch(pathStr, "[^%.]+") do
-        table.insert(parts, part)
-    end
-    local node = nil
-    if parts[1] == "workspace" or parts[1] == "Workspace" then
-        node = workspace
-    elseif parts[1] == "game" or parts[1] == "Game" then
-        node = game
-    else
-        -- empezar desde game por seguridad
-        node = game
-    end
-    for i = 2, #parts do
-        if not node then return nil end
-        local childName = parts[i]
-        -- usar FindFirstChild para evitar yields; si falta devolvemos nil
-        local found = node:FindFirstChild(childName)
-        if not found then
-            -- intentar mirar también como propiedad directa (ej. "Speed" como propiedad)
-            -- Si node tiene una propiedad con ese nombre, no podemos accederla por FindFirstChild
-            -- retornamos el parent y la "propName" por si se trata de propiedad en vez de Value object
-            return node, childName
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Velocity = Vector3.zero
+    bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+    bodyVelocity.Parent = humanoidRootPart
+
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+    bodyGyro.D = 100
+    bodyGyro.P = 1000
+    bodyGyro.Parent = humanoidRootPart
+
+    connection = RunService.RenderStepped:Connect(function()
+        if not flying then return end
+
+        local camera = workspace.CurrentCamera
+        local direction = Vector3.zero
+        local cf = camera.CFrame
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            direction = direction + cf.LookVector
         end
-        node = found
-    end
-    return node
-end
-
--- Intenta aplicar el valor apropiado al target (NumberValue, BoolValue, RemoteEvent, propiedad)
-local function applyValueToTarget(targetObjOrParent, propNameOrNil, value)
-    -- Si targetObjOrParent es nil -> nothing
-    if not targetObjOrParent then
-        return false, "Target not found"
-    end
-
-    -- Si recibimos (parent, propName) en vez de instancia, intentamos establecer propiedad del parent
-    if propNameOrNil then
-        local parent = targetObjOrParent
-        local propName = propNameOrNil
-        -- intentar si parent tiene miembro con ese nombre
-        local success, err = pcall(function()
-            -- Si existe como Instance child con ese nombre:
-            local child = parent:FindFirstChild(propName)
-            if child then
-                -- Reintentar como instance
-                if child:IsA("NumberValue") or child:IsA("IntValue") then
-                    child.Value = value
-                elseif child:IsA("BoolValue") then
-                    child.Value = (value ~= 0)
-                elseif child:IsA("RemoteEvent") then
-                    child:FireServer(value)
-                else
-                    -- intentar asignar .Value si tiene
-                    if child.Value ~= nil then
-                        child.Value = value
-                    end
-                end
-                return
-            end
-
-            -- Si no hay child con ese nombre, intentar asignar propiedad directamente (por ejemplo .WalkSpeed)
-            -- esto puede fallar si la propiedad no existe o no es escribible
-            if parent[propName] ~= nil then
-                parent[propName] = value
-                return
-            end
-
-            error("No child nor property named " .. propName)
-        end)
-        if success then
-            return true
-        else
-            return false, err
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            direction = direction - cf.LookVector
         end
-    end
-
-    local inst = targetObjOrParent
-    local success, err = pcall(function()
-        if inst:IsA("NumberValue") or inst:IsA("IntValue") then
-            inst.Value = value
-        elseif inst:IsA("BoolValue") then
-            inst.Value = (value ~= 0)
-        elseif inst:IsA("RemoteEvent") then
-            inst:FireServer(value)
-        else
-            -- intentar asignar .Value si existe
-            if inst:FindFirstChild("Value") and (inst.Value ~= nil) then
-                inst.Value = value
-                return
-            end
-            -- intentar asignar propiedad Speed o similar
-            if inst["Speed"] ~= nil then
-                inst["Speed"] = value
-                return
-            end
-            -- si es BasePart y queremos forzar velocidad no es recomendable;
-            -- simplemente error si no encontramos nada para escribir
-            error("No writable field found on instance: " .. inst.ClassName)
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            direction = direction - cf.RightVector
         end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            direction = direction + cf.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            direction = direction + Vector3.new(0, 1, 0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+            direction = direction - Vector3.new(0, 1, 0)
+        end
+
+        if direction.Magnitude > 0 then
+            direction = direction.Unit
+        end
+
+        bodyVelocity.Velocity = direction * flySpeed
+        bodyGyro.CFrame = cf
     end)
-    if success then
-        return true
-    else
-        return false, err
-    end
 end
 
--- Coroutine worker para cada target
-local function startWorker(t)
-    if coroutines[t.key] then return end
-    local co = coroutine.create(function()
-        while enabled[t.key] do
-            local resolved1, resolved2 = resolvePath(t.path)
-            local valueNumber = tonumber(t.userValue) or defaultSpeedValue
+local function disableFly()
+    flying = false
+    humanoid.PlatformStand = false
 
-            local ok, err
-            if resolved2 then
-                -- resolved1 es parent y resolved2 es propiedad/childName
-                ok, err = applyValueToTarget(resolved1, resolved2, valueNumber)
-            else
-                ok, err = applyValueToTarget(resolved1, nil, valueNumber)
-            end
-
-            if not ok then
-                -- Silenciosamente continuar; podría actualizar UI con el error
-                -- print("AutoTrainSpeed: error applying to " .. t.label .. " -> " .. tostring(err))
-            end
-
-            -- Frecuencia: 0.3 segundos por defecto
-            wait(0.3)
-        end
-    end)
-    coroutines[t.key] = co
-    coroutine.resume(co)
+    if bodyVelocity then bodyVelocity:Destroy() end
+    if bodyGyro then bodyGyro:Destroy() end
+    if connection then connection:Disconnect() end
 end
 
-local function stopWorker(t)
-    coroutines[t.key] = nil
-    enabled[t.key] = false
-end
+-- ══════════════════════════════
+--           GUI
+-- ══════════════════════════════
 
--- Build UI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AutoTrainSpeedGUI"
+screenGui.Name = "FlyGUI"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = playerGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player.PlayerGui
 
+-- Frame principal
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "Main"
-mainFrame.Size = UDim2.new(0, 320, 0, 160)
-mainFrame.Position = UDim2.new(0, 10, 0, 100)
-mainFrame.BackgroundTransparency = 0.15
-mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.Size = UDim2.new(0, 220, 0, 180)
+mainFrame.Position = UDim2.new(0, 20, 0.5, -90)
+mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 28)
 mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 
-local UIList = Instance.new("UIListLayout")
-UIList.Padding = UDim.new(0, 6)
-UIList.FillDirection = Enum.FillDirection.Vertical
-UIList.Parent = mainFrame
-UIList.SortOrder = Enum.SortOrder.LayoutOrder
+-- Esquinas redondeadas
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = mainFrame
 
+-- Stroke (borde)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(100, 80, 255)
+stroke.Thickness = 2
+stroke.Parent = mainFrame
+
+-- Título
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -10, 0, 28)
-title.BackgroundTransparency = 1
-title.Text = "Auto Train Speed"
-title.TextColor3 = Color3.fromRGB(255,255,255)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 18
-title.TextXAlignment = Enum.TextXAlignment.Left
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.fromRGB(30, 20, 60)
+title.BorderSizePixel = 0
+title.Text = "✈  FLY SCRIPT"
+title.TextColor3 = Color3.fromRGB(180, 150, 255)
+title.TextSize = 16
+title.Font = Enum.Font.GothamBold
 title.Parent = mainFrame
-title.LayoutOrder = 1
-title.Position = UDim2.new(0, 8, 0, 6)
 
--- function to create one row for a target
-local function makeRow(t)
-    local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, -12, 0, 36)
-    row.BackgroundTransparency = 0.3
-    row.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    row.Parent = mainFrame
-    row.LayoutOrder = #mainFrame:GetChildren() + 1
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 12)
+titleCorner.Parent = title
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.55, 0, 1, 0)
-    label.Position = UDim2.new(0, 6, 0, 0)
-    label.BackgroundTransparency = 1
-    label.Text = t.label
-    label.TextColor3 = Color3.fromRGB(240,240,240)
-    label.Font = Enum.Font.SourceSans
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = row
+-- Label estado
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.Position = UDim2.new(0, 0, 0, 45)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Estado: OFF"
+statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+statusLabel.TextSize = 14
+statusLabel.Font = Enum.Font.GothamSemibold
+statusLabel.Parent = mainFrame
 
-    local txtBox = Instance.new("TextBox")
-    txtBox.Size = UDim2.new(0.25, 0, 0.9, 0)
-    txtBox.Position = UDim2.new(0.55, 6, 0.05, 0)
-    txtBox.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    txtBox.TextColor3 = Color3.fromRGB(0,0,0)
-    txtBox.Text = tostring(defaultSpeedValue)
-    txtBox.Font = Enum.Font.SourceSans
-    txtBox.TextSize = 14
-    txtBox.ClearTextOnFocus = false
-    txtBox.Parent = row
+-- Botón ON/OFF
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0.85, 0, 0, 36)
+toggleBtn.Position = UDim2.new(0.075, 0, 0, 82)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+toggleBtn.Text = "ACTIVAR VUELO"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 14
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Parent = mainFrame
 
-    local toggle = Instance.new("TextButton")
-    toggle.Size = UDim2.new(0.17, 0, 0.9, 0)
-    toggle.Position = UDim2.new(0.82, -6, 0.05, 0)
-    toggle.BackgroundColor3 = Color3.fromRGB(200,40,40)
-    toggle.TextColor3 = Color3.fromRGB(255,255,255)
-    toggle.Font = Enum.Font.SourceSansBold
-    toggle.TextSize = 14
-    toggle.Text = "OFF"
-    toggle.Parent = row
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.Parent = toggleBtn
 
-    -- status label (small)
-    local status = Instance.new("TextLabel")
-    status.Size = UDim2.new(1, 0, 0, 14)
-    status.Position = UDim2.new(0, 6, 1, -16)
-    status.BackgroundTransparency = 1
-    status.TextColor3 = Color3.fromRGB(200,200,200)
-    status.Font = Enum.Font.SourceSans
-    status.TextSize = 11
-    status.Text = "Estado: Desconocido"
-    status.Parent = row
+-- Label velocidad
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(1, 0, 0, 25)
+speedLabel.Position = UDim2.new(0, 0, 0, 128)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Text = "Velocidad: " .. flySpeed
+speedLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+speedLabel.TextSize = 13
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.Parent = mainFrame
 
-    -- Interactividad
-    toggle.MouseButton1Click:Connect(function()
-        enabled[t.key] = not enabled[t.key]
-        if enabled[t.key] then
-            toggle.Text = "ON"
-            toggle.BackgroundColor3 = Color3.fromRGB(40,160,40)
-            -- store current value in target table
-            t.userValue = txtBox.Text
-            status.Text = "Estado: Activado"
-            startWorker(t)
-        else
-            toggle.Text = "OFF"
-            toggle.BackgroundColor3 = Color3.fromRGB(200,40,40)
-            status.Text = "Estado: Desactivado"
-            stopWorker(t)
-        end
-    end)
+-- Botones velocidad
+local minusBtn = Instance.new("TextButton")
+minusBtn.Size = UDim2.new(0, 50, 0, 30)
+minusBtn.Position = UDim2.new(0.08, 0, 0, 148)
+minusBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
+minusBtn.Text = "  -  "
+minusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minusBtn.TextSize = 18
+minusBtn.Font = Enum.Font.GothamBold
+minusBtn.BorderSizePixel = 0
+minusBtn.Parent = mainFrame
 
-    txtBox.FocusLost:Connect(function(enterPressed)
-        t.userValue = txtBox.Text
-    end)
+local minusCorner = Instance.new("UICorner")
+minusCorner.CornerRadius = UDim.new(0, 8)
+minusCorner.Parent = minusBtn
 
-    -- inicializamos el userValue
-    t.userValue = txtBox.Text
-end
+local plusBtn = Instance.new("TextButton")
+plusBtn.Size = UDim2.new(0, 50, 0, 30)
+plusBtn.Position = UDim2.new(0.62, 0, 0, 148)
+plusBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
+plusBtn.Text = "  +  "
+plusBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+plusBtn.TextSize = 18
+plusBtn.Font = Enum.Font.GothamBold
+plusBtn.BorderSizePixel = 0
+plusBtn.Parent = mainFrame
 
--- Crear filas para cada objetivo
-for _, t in ipairs(targets) do
-    makeRow(t)
-end
+local plusCorner = Instance.new("UICorner")
+plusCorner.CornerRadius = UDim.new(0, 8)
+plusCorner.Parent = plusBtn
 
--- Agrega botón de cerrar/mostrar
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 24, 0, 24)
-closeBtn.Position = UDim2.new(1, -30, 0, 6)
-closeBtn.Text = "X"
-closeBtn.Font = Enum.Font.SourceSansBold
-closeBtn.TextSize = 18
-closeBtn.BackgroundColor3 = Color3.fromRGB(150,40,40)
-closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-closeBtn.Parent = mainFrame
+-- ══════════════════════════════
+--         LÓGICA BOTONES
+-- ══════════════════════════════
 
-local collapsed = false
-local savedSize = mainFrame.Size
-closeBtn.MouseButton1Click:Connect(function()
-    collapsed = not collapsed
-    if collapsed then
-        mainFrame.Size = UDim2.new(0, 120, 0, 36)
-        closeBtn.Text = ">"
+toggleBtn.MouseButton1Click:Connect(function()
+    if not flying then
+        enableFly()
+        toggleBtn.Text = "DESACTIVAR VUELO"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(80, 200, 80)
+        statusLabel.Text = "Estado: ON ✔"
+        statusLabel.TextColor3 = Color3.fromRGB(80, 255, 80)
     else
-        mainFrame.Size = savedSize
-        closeBtn.Text = "X"
+        disableFly()
+        toggleBtn.Text = "ACTIVAR VUELO"
+        toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+        statusLabel.Text = "Estado: OFF"
+        statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
     end
 end)
 
--- Final: nota visible
-local footer = Instance.new("TextLabel")
-footer.Size = UDim2.new(1, -10, 0, 18)
-footer.BackgroundTransparency = 1
-footer.Text = "Nota: si no funciona, el servidor controla la propiedad o se requiere otro método."
-footer.TextColor3 = Color3.fromRGB(180,180,180)
-footer.Font = Enum.Font.SourceSansItalic
-footer.TextSize = 11
-footer.TextXAlignment = Enum.TextXAlignment.Left
-footer.Parent = mainFrame
-
--- Garantizar limpieza al morir el personaje
-player.CharacterAdded:Connect(function()
-    -- opcional: si quieres detener al reaparecer, descomentar:
-    -- for _, t in ipairs(targets) do enabled[t.key] = false end
+plusBtn.MouseButton1Click:Connect(function()
+    flySpeed = math.clamp(flySpeed + 10, 10, 500)
+    speedLabel.Text = "Velocidad: " .. flySpeed
+    if bodyVelocity then
+        -- se actualiza automáticamente en el loop
+    end
 end)
 
-print("AutoTrainSpeed GUI loaded.")
+minusBtn.MouseButton1Click:Connect(function()
+    flySpeed = math.clamp(flySpeed - 10, 10, 500)
+    speedLabel.Text = "Velocidad: " .. flySpeed
+end)
+
+-- Re-obtener character si respawnea
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoidRootPart = char:WaitForChild("HumanoidRootPart")
+    humanoid = char:WaitForChild("Humanoid")
+    flying = false
+    toggleBtn.Text = "ACTIVAR VUELO"
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    statusLabel.Text = "Estado: OFF"
+    statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+end)
