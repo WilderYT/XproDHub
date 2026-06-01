@@ -1,1 +1,202 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/spicy/main/Chilli.lua"))()
+(async () => {
+  // ─── CONFIG ───────────────────────────────────────────────
+  const DELAY_AFTER_CLICK   = 2500;  
+  const DELAY_AFTER_UNSEND  = 3000;  
+  const DELAY_SCROLL        = 2000;  
+  const SCROLL_STEP         = 600;   
+  const MAX_EMPTY_ROUNDS    = 5;     
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  function forceHover(el) {
+    ['pointerenter','pointerover','mouseover','mouseenter','mousemove'].forEach(type => {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));
+    });
+  }
+
+  function forceVisible(el) {
+    el.style.setProperty('opacity',    '1',       'important');
+    el.style.setProperty('visibility', 'visible', 'important');
+    el.style.setProperty('display',    'flex',    'important');
+    el.style.setProperty('pointer-events', 'all', 'important');
+  }
+
+  function reliableClick(el) {
+    forceVisible(el);
+    el.focus?.();
+    el.click();
+  }
+
+  // NUEVA FUNCIÓN: Simula un toque humano completo para engañar al modal de Instagram
+  function reactClick(el) {
+    ['mouseover', 'mousedown', 'mouseup', 'click'].forEach(type => {
+      el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+    });
+  }
+
+  async function waitFor(selectorFn, timeout = 4000) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const el = selectorFn();
+      if (el) return el;
+      await sleep(150);
+    }
+    return null;
+  }
+
+  function getScrollContainer() {
+    const input = document.querySelector('[contenteditable="true"], textarea, [role="textbox"]');
+    if (!input) return null;
+    let node = input.parentElement;
+    while (node && node !== document.body) {
+      const style  = getComputedStyle(node);
+      const overflow = style.overflowY;
+      if ((overflow === 'scroll' || overflow === 'auto') && node.scrollHeight > node.clientHeight + 100) {
+        return node;
+      }
+      node = node.parentElement;
+    }
+    return [...document.querySelectorAll('div')].find(d => {
+      const s = getComputedStyle(d);
+      return (s.overflowY === 'scroll' || s.overflowY === 'auto') && d.scrollHeight > 500;
+    }) ?? null;
+  }
+
+  function getMyMessageRows() {
+    return [...document.querySelectorAll('div[class]')].filter(el => {
+      const style = getComputedStyle(el);
+      if (style.justifyContent !== 'flex-end') return false;
+      const h = el.offsetHeight;
+      if (h < 20 || h > 300) return false;
+      if (el.getAttribute('role') === 'button') return false;
+      return !!(el.querySelector('span, img, [data-scope]') || el.innerText?.trim().length > 0);
+    });
+  }
+
+  async function openOptionsMenu(messageRow) {
+    forceHover(messageRow);
+    await sleep(400);
+    const labels = ['más', 'more', 'opciones', 'options', 'Más', 'More', 'Opciones', 'Options'];
+    let btn = null;
+
+    for (const label of labels) {
+      btn = document.querySelector(`[aria-label="${label}"], [aria-label="${label.toLowerCase()}"]`);
+      if (btn) break;
+    }
+
+    if (!btn) {
+      const svgs = [...document.querySelectorAll('svg')];
+      for (const svg of svgs) {
+        const title = svg.querySelector('title');
+        if (title && labels.some(l => title.textContent.toLowerCase().includes(l.toLowerCase()))) {
+          let parent = svg.parentElement;
+          while (parent && parent !== document.body) {
+            if (parent.getAttribute('role') === 'button' || parent.tagName === 'BUTTON') {
+              btn = parent;
+              break;
+            }
+            parent = parent.parentElement;
+          }
+          if (btn) break;
+        }
+      }
+    }
+
+    if (!btn) {
+      const container = messageRow.closest('[data-scope], [data-message-id]') ?? messageRow.parentElement?.parentElement;
+      if (container) {
+        btn = container.querySelector('[role="button"]');
+        if (btn) {
+          const label = (btn.getAttribute('aria-label') ?? '').toLowerCase();
+          if (['play','pause','audio','video','reproducir'].some(w => label.includes(w))) btn = null;
+        }
+      }
+    }
+
+    if (!btn) return false;
+    forceVisible(btn);
+    forceHover(btn);
+    await sleep(200);
+    reliableClick(btn);
+    return true;
+  }
+
+  async function clickUnsendOption() {
+    const keywords = ['anular envío','unsend','eliminar mensaje','delete message'];
+    const option = await waitFor(() => {
+      const items = [...document.querySelectorAll('[role="menuitem"], [role="option"], span, div')];
+      return items.find(el => {
+        const text = el.textContent?.trim().toLowerCase();
+        // Búsqueda estricta
+        return keywords.includes(text) && el.offsetParent !== null;
+      });
+    });
+    if (!option) return false;
+    reactClick(option); 
+    return true;
+  }
+
+  async function confirmUnsend() {
+    const keywords = ['anular envío','unsend','eliminar','delete'];
+    const confirmBtn = await waitFor(() => {
+      const buttons = [...document.querySelectorAll('button, [role="button"]')];
+      return buttons.find(el => {
+        const text = el.textContent?.trim().toLowerCase();
+        // Igualdad estricta para evitar darle clic al título del modal
+        return keywords.includes(text) && el.offsetParent !== null;
+      });
+    });
+    if (!confirmBtn) return false;
+    reactClick(confirmBtn); 
+    return true;
+  }
+
+  console.log('%c[UNSEND] Iniciando...', 'color:cyan;font-weight:bold');
+  const scrollContainer = getScrollContainer();
+  if (!scrollContainer) {
+    console.error('[UNSEND] Contenedor scroll no encontrado. ¿Estás en un chat?');
+    return;
+  }
+  
+  let emptyRounds = 0;
+  let totalUnsent = 0;
+
+  while (emptyRounds < MAX_EMPTY_ROUNDS) {
+    const rows = getMyMessageRows();
+    if (rows.length === 0) {
+      console.log('[UNSEND] Sin mensajes propios visibles. Scroll up...');
+      scrollContainer.scrollTop -= SCROLL_STEP;
+      await sleep(DELAY_SCROLL);
+      emptyRounds++;
+      continue;
+    }
+
+    emptyRounds = 0;
+    const target = rows[rows.length - 1];
+    
+    const menuOpened = await openOptionsMenu(target);
+    if (!menuOpened) {
+      scrollContainer.scrollTop -= SCROLL_STEP;
+      await sleep(DELAY_SCROLL);
+      continue;
+    }
+    await sleep(DELAY_AFTER_CLICK);
+
+    const optionClicked = await clickUnsendOption();
+    if (!optionClicked) {
+      document.body.click();
+      await sleep(800);
+      continue;
+    }
+    await sleep(DELAY_AFTER_CLICK);
+
+    const confirmed = await confirmUnsend();
+    if (confirmed) {
+      totalUnsent++;
+      console.log(`%c[UNSEND] ✓ Mensaje ${totalUnsent} eliminado`, 'color:lime');
+    }
+    await sleep(DELAY_AFTER_UNSEND);
+  }
+
+  console.log(`%c[UNSEND] Completado. Total eliminados: ${totalUnsent}`, 'color:orange;font-weight:bold;font-size:14px');
+})();
