@@ -1,7 +1,7 @@
---[[    
+--[[
     Untitled Boxing Game - Perfect AutoDodge Script
     Detects M1 (Light) and M2 (Heavy) attacks
-    GUI: Minimalist glassmorphic design
+    GUI: Minimalist glassmorphic design (Parented to PlayerGui)
     Credit: Smith
     Executor: Synapse X, Krnl, ScriptWare, Solara
 --]]
@@ -31,15 +31,11 @@ local function setupAttackDetection()
     
     animator.AnimationPlayed:Connect(function(animationTrack)
         local animName = animationTrack.Animation.AnimationId
-        -- Filter for opponent attacks (simplified - checks if animation plays on opponent)
         if animationTrack.IsPlaying and not activeTracks[animationTrack] then
             activeTracks[animationTrack] = true
             
-            -- M1 Detection (Light Attack)
             if string.find(animName, "Light") or string.find(animName, "Jab") then
                 dodge("M1")
-            end
-            -- M2 Detection (Heavy Attack)
             elseif string.find(animName, "Heavy") or string.find(animName, "Hook") then
                 dodge("M2")
             end
@@ -56,7 +52,6 @@ local function detectAttackByVelocity()
     local currentVel = RootPart.Velocity
     local velChange = (currentVel - lastRootVel).Magnitude
     
-    -- Sudden velocity spike indicates incoming attack
     if velChange > 25 and velChange < 80 then
         if velChange < 45 then
             dodge("M1")
@@ -71,7 +66,6 @@ end
 local function dodge(attackType)
     if not RootPart or not Humanoid or Humanoid.Health <= 0 then return end
     
-    -- Direction calculation (dodge to nearest side relative to attacker)
     local nearestPlayer, nearestDist = nil, math.huge
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
@@ -87,10 +81,9 @@ local function dodge(attackType)
     
     local attackerRoot = nearestPlayer.Character.HumanoidRootPart
     local direction = (RootPart.Position - attackerRoot.Position).Unit
-    local perpVector = Vector3.new(-direction.Z, 0, direction.X)  -- Perpendicular
+    local perpVector = Vector3.new(-direction.Z, 0, direction.X)
     local dodgePos = RootPart.Position + (perpVector * CONFIG.DodgeDistance)
     
-    -- Tween for smooth dodge
     local tweenInfo = TweenInfo.new(
         CONFIG.DodgeDuration,
         Enum.EasingStyle.Quad,
@@ -99,7 +92,6 @@ local function dodge(attackType)
     local tween = TweenService:Create(RootPart, tweenInfo, {CFrame = CFrame.new(dodgePos)})
     tween:Play()
     
-    -- Visual feedback
     local highlight = Instance.new("Highlight")
     highlight.Adornee = Character
     highlight.FillColor = Color3.fromRGB(0, 255, 255)
@@ -107,20 +99,18 @@ local function dodge(attackType)
     highlight.OutlineTransparency = 0.5
     highlight.Parent = Character
     game:GetService("Debris"):AddItem(highlight, 0.3)
-    
-    -- Chat indicator (optional, remove if detectable)
-    -- LocalPlayer.Chatted:Fire("Perfect Dodge!")
 end
 
--- GUI Creation (Minimalist - Smith Style)
+-- GUI Creation (Minimalist - Smith Style) - FIXED: Uses PlayerGui instead of CoreGui
 local function createGUI()
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+    
     local screenGui = Instance.new("ScreenGui")
     screenGui.Name = "SmithAutoDodge"
     screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     screenGui.ResetOnSpawn = false
-    screenGui.Parent = game:GetService("CoreGui")
+    screenGui.Parent = playerGui
     
-    -- Main Frame (Glassmorphism)
     local mainFrame = Instance.new("Frame")
     mainFrame.Size = UDim2.new(0, 280, 0, 380)
     mainFrame.Position = UDim2.new(0, 15, 0.5, -190)
@@ -130,23 +120,16 @@ local function createGUI()
     mainFrame.ClipsDescendants = true
     mainFrame.Parent = screenGui
     
-    -- Blur effect (if supported)
-    local blur = Instance.new("BlurEffect")
-    blur.Size = 8
-    blur.Enabled = false
-    
     local uiCorner = Instance.new("UICorner")
     uiCorner.CornerRadius = UDim.new(0, 12)
     uiCorner.Parent = mainFrame
     
-    -- Stroke/Border
     local uiStroke = Instance.new("UIStroke")
     uiStroke.Thickness = 1.5
     uiStroke.Color = Color3.fromRGB(100, 100, 255)
     uiStroke.Transparency = 0.6
     uiStroke.Parent = mainFrame
     
-    -- Title Bar
     local titleBar = Instance.new("Frame")
     titleBar.Size = UDim2.new(1, 0, 0, 40)
     titleBar.BackgroundTransparency = 1
@@ -164,7 +147,6 @@ local function createGUI()
     title.BackgroundTransparency = 1
     title.Parent = titleBar
     
-    -- Status LED
     local led = Instance.new("Frame")
     led.Size = UDim2.new(0, 12, 0, 12)
     led.Position = UDim2.new(1, -25, 0.5, -6)
@@ -176,11 +158,9 @@ local function createGUI()
     ledCorner.CornerRadius = UDim.new(1, 0)
     ledCorner.Parent = led
     
-    -- Pulsing animation for LED
     local pulse = game:GetService("TweenService"):Create(led, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1), {BackgroundTransparency = 0.7})
     pulse:Play()
     
-    -- Toggle Button
     local toggleButton = Instance.new("TextButton")
     toggleButton.Size = UDim2.new(0.8, 0, 0, 45)
     toggleButton.Position = UDim2.new(0.1, 0, 0.25, 0)
@@ -197,7 +177,6 @@ local function createGUI()
     btnCorner.CornerRadius = UDim.new(0, 8)
     btnCorner.Parent = toggleButton
     
-    -- Stats Display
     local statsFrame = Instance.new("Frame")
     statsFrame.Size = UDim2.new(0.8, 0, 0, 80)
     statsFrame.Position = UDim2.new(0.1, 0, 0.45, 0)
@@ -232,7 +211,6 @@ local function createGUI()
     lastDodgeLabel.BackgroundTransparency = 1
     lastDodgeLabel.Parent = statsFrame
     
-    -- Draggable functionality
     local dragging = false
     local dragStart, startPos
     
@@ -257,27 +235,23 @@ local function createGUI()
         end
     end)
     
-    -- Stats update function
     local dodgeCount = 0
     local function updateStats(attackType)
         dodgeCount = dodgeCount + 1
         dodgeCountLabel.Text = "Dodges: " .. dodgeCount
         lastDodgeLabel.Text = "Last: " .. attackType .. " | " .. os.date("%H:%M:%S")
         
-        -- Flash effect
         led.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
         task.wait(0.15)
         led.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
     end
     
-    -- Override dodge function with stats
     local originalDodge = dodge
     dodge = function(attackType)
         originalDodge(attackType)
         updateStats(attackType)
     end
     
-    -- Toggle enable/disable
     local enabled = false
     local connection = nil
     
@@ -321,8 +295,5 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 
--- Start GUI
-local gui = createGUI()
-
--- Print credit to console (optional)
-warn("Smith AutoDodge v2.0 - Loaded | Credit: Smith")
+createGUI()
+warn("Smith AutoDodge v2.0 - Loaded | Credit: Smith (PlayerGui version)")
