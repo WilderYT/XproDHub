@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Silent Aim + ESP Dinámico + ModernGUI
+-- SCRIPT INTEGRADO: Silent Aim Real (Bajo Demanda) + ESP + UI
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -14,18 +14,14 @@ local TweenService = game:GetService("TweenService")
 local CONFIG = {
     TargetMode = "closest",  -- "closest" | "team" | "all"
     AimPart = "Head",
-    FOV = 180,               -- Rango amplio para el Silent Aim
+    FOV = 180,
     CheckDistance = 300,
-    
-    AutoShoot = true,
-    ShootCooldown = 1.2,     -- Cooldown aumentado para evitar efecto ametralladora
     
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
 }
 
 local isMobile = userInputService.TouchEnabled and not userInputService.MouseEnabled
-local isPC = not isMobile
 
 -- ============================================
 -- 1) TARGETING DINÁMICO
@@ -51,7 +47,7 @@ local function getEnemies()
     return enemies
 end
 
-local function getClosestEnemy()
+local function getClosestEnemyWithinFOV()
     local enemies = getEnemies()
     if #enemies == 0 then return nil end
     
@@ -63,65 +59,78 @@ local function getClosestEnemy()
         local part = plr.Character:FindFirstChild(CONFIG.AimPart) or plr.Character:FindFirstChild("HumanoidRootPart")
         if part then
             local dist = (part.Position - cameraPos).Magnitude
-            if dist < closestDist then
-                closestDist = dist
-                closest = plr
+            if dist <= CONFIG.CheckDistance then
+                -- Validar FOV
+                local toTarget = (part.Position - cameraPos).Unit
+                local angleDeg = math.deg(math.acos(math.clamp(camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
+                if angleDeg <= CONFIG.FOV then
+                    if dist < closestDist then
+                        closestDist = dist
+                        closest = plr
+                    end
+                end
             end
         end
     end
     return closest
 end
 
-local function getTargetPosition(target)
-    if not target or not target.Character then return nil end
-    local part = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
-    if not part then return nil end
-    return part.Position
+-- ============================================
+-- 2) INTERCEPTOR DE DISPARO (SILENT AIM REAL)
+-- ============================================
+-- Esta función busca el RemoteEvent de disparo del juego de forma dinámica
+local function getFireRemote()
+    local eventsFolder = replicatedStorage:FindFirstChild("DuelEvents")
+    if eventsFolder then
+        return eventsFolder:FindFirstChild("PistolFire")
+    end
+    return nil
 end
 
--- ============================================
--- 2) SISTEMA DE SILENT AIM Y DISPARO LIMPIO
--- ============================================
-local function performSilentShoot(target)
-    local eventsFolder = replicatedStorage:FindFirstChild("DuelEvents")
-    local fireRemote = eventsFolder and eventsFolder:FindFirstChild("PistolFire")
+-- Hook o detección cuando el jugador intenta disparar con su arma equipada manualmente
+local isActive = false
+local lastFired = 0
+
+local function trySilentShoot()
+    if not isActive then return end
     
-    if not target or not target.Character or not fireRemote then return false end
+    local myChar = player.Character
+    if not myChar then return end
+    
+    -- Verificamos si el usuario tiene una herramienta ACTIVAMENTE equipada en la mano
+    local tool = myChar:FindFirstChildOfClass("Tool")
+    if not tool then return end -- Si no tiene nada en la mano, no hace nada (CERO auto-equipar)
+    
+    local target = getClosestEnemyWithinFOV()
+    if not target or not target.Character then return end
     
     local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
-    local myChar = player.Character
-    if not myChar then return false end
+    if not targetPart then return end
     
-    local tool = myChar:FindFirstChildOfClass("Tool")
-    if not tool then
-        local backpack = player:FindFirstChildOfClass("Backpack")
-        if backpack then
-            local bpTool = backpack:FindFirstChildOfClass("Tool")
-            if bpTool and myChar:FindFirstChild("Humanoid") then
-                myChar.Humanoid:EquipTool(bpTool)
-                tool = bpTool
-            end
-        end
-    end
+    local fireRemote = getFireRemote()
+    if not fireRemote then return end
     
-    local originPos
-    if tool and tool:FindFirstChild("Handle") then
-        originPos = tool.Handle.Position
-    else
-        local head = myChar:FindFirstChild("Head")
-        originPos = head and head.Position or camera.CFrame.Position
-    end
+    local originPos = tool:FindFirstChild("Handle") and tool.Handle.Position or myChar.Head.Position
+    local targetPos = targetPart.Position
     
-    local targetPos = targetPart and targetPart.Position
-    if not originPos or not targetPos then return false end
+    -- Cooldown interno breve para evitar spam accidental al hacer click
+    if tick() - lastFired < 0.2 then return end
+    lastFired = tick()
     
-    -- Disparamos directamente al RemoteEvent sin alterar la cámara (Silent Aim puro)
+    -- Disparamos de manera silenciosa hacia el enemigo cuando el usuario hizo click
     pcall(function()
         fireRemote:FireServer(originPos, targetPos)
     end)
-    
-    return true
 end
+
+-- Detectar el click del mouse (PC) o toque en pantalla (Móvil) cuando el usuario decide disparar
+userInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not isActive then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        -- Solo actúa si el usuario presiona para disparar
+        trySilentShoot()
+    end
+end)
 
 -- ============================================
 -- 3) ESP (HIGHLIGHT NATIVO)
@@ -166,48 +175,12 @@ local function updateESP()
     end
 end
 
--- ============================================
--- 4) BUCLE PRINCIPAL (SILENT AIM ACTIVO)
--- ============================================
-local isActive = false 
-local lastShootTime = 0
-local currentTarget = nil
-
 runService.RenderStepped:Connect(function()
     updateESP()
-    
-    if not isActive then return end
-    
-    currentTarget = getClosestEnemy()
-    if not currentTarget then return end
-    
-    local targetPos = getTargetPosition(currentTarget)
-    if not targetPos then return end
-    
-    local distance = (targetPos - camera.CFrame.Position).Magnitude
-    if distance > CONFIG.CheckDistance then return end
-    
-    -- Validar FOV basado en la dirección de la cámara actual
-    local camLook = camera.CFrame.LookVector
-    local toTarget = (targetPos - camera.CFrame.Position).Unit
-    local angle = math.acos(math.clamp(camLook:Dot(toTarget), -1, 1))
-    local angleDeg = math.deg(angle)
-    
-    if angleDeg > CONFIG.FOV then return end
-    
-    if CONFIG.AutoShoot then
-        local now = tick()
-        -- Controlamos el tiempo entre disparos para que no parezca metralleta
-        if now - lastShootTime >= CONFIG.ShootCooldown then
-            if performSilentShoot(currentTarget) then
-                lastShootTime = now
-            end
-        end
-    end
 end)
 
 -- ============================================
--- 5) CREACIÓN E INTEGRACIÓN DE LA INTERFAZ (UI)
+-- 4) INTERFAZ GRÁFICA (UI)
 -- ============================================
 local Theme = {
     Background   = Color3.fromRGB(15, 15, 20),
@@ -315,7 +288,7 @@ subtitleLabel.BackgroundTransparency = 1
 subtitleLabel.Position = UDim2.new(0, 26, 0, 26)
 subtitleLabel.Size = UDim2.new(1, -70, 0, 16)
 subtitleLabel.Font = FONT
-subtitleLabel.Text = "Silent Aim v2.0"
+subtitleLabel.Text = "Silent Aim Real v3.0"
 subtitleLabel.TextColor3 = Theme.TextSecondary
 subtitleLabel.TextSize = 12
 subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -562,4 +535,4 @@ do
     end)
 end
 
-print("✅ Silent Aim configurado correctamente sin ráfaga visual ni movimiento de cámara.")
+print("✅ Silent Aim Verdadero configurado: Solo actúa cuando tú haces click y tienes el arma en mano.")
