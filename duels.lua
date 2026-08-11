@@ -1,4 +1,4 @@
--- SCRIPT CORREGIDO: Aimbot + ESP + Detección Automática de Remotes
+-- SCRIPT CORREGIDO Y OPTIMIZADO: Aimbot + ESP Dinámico
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local replicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,12 +11,12 @@ local userInputService = game:GetService("UserInputService")
 local CONFIG = {
     TargetMode = "closest",  -- "closest" | "team" | "all"
     AimPart = "Head",
-    FOV = 120,
-    CheckDistance = 150,
+    FOV = 150,
+    CheckDistance = 200,
     
-    Smoothness = 0.3,
+    Smoothness = 0.25,
     AutoShoot = true,
-    ShootCooldown = 0.15,
+    ShootCooldown = 0.1,
     
     ESPEnabled = true,
     ESPColor = Color3.fromRGB(255, 0, 0),
@@ -26,28 +26,22 @@ local isMobile = userInputService.TouchEnabled
 local isPC = not isMobile
 
 -- ============================================
--- DETECCIÓN AUTOMÁTICA DE REMOTES
+-- BÚSQUEDA SEGURA DE REMOTES DE COMBATE
 -- ============================================
-local function findBestRemote()
-    local candidates = {"damage", "shoot", "fire", "hit", "gun", "weapon"}
+local function getCombatRemotes()
+    local remotes = {}
     for _, child in ipairs(replicatedStorage:GetDescendants()) do
         if child:IsA("RemoteEvent") then
-            local nameLower = child.Name:lower()
-            for _, keyword in ipairs(candidates) do
-                if string.find(nameLower, keyword) then
-                    print("🎯 Remote encontrado automáticamente: " .. child.Name)
-                    return child
-                end
+            local name = child.Name:lower()
+            if string.find(name, "shoot") or string.find(name, "fire") or string.find(name, "damage") or string.find(name, "hit") or string.find(name, "gun") then
+                table.insert(remotes, child)
             end
         end
     end
-    return nil
+    return remotes
 end
 
-local combatRemote = findBestRemote()
-if not combatRemote then
-    warn("⚠️ No se encontró un Remote automático, asegúrate de que el juego permita fuego remoto.")
-end
+local availableRemotes = getCombatRemotes()
 
 -- ============================================
 -- 1) TARGETING DINÁMICO
@@ -102,7 +96,7 @@ local function getTargetPosition(target)
 end
 
 -- ============================================
--- 2) AIMBOT
+-- 2) AIMBOT (CÁMARA SUAVIZADA)
 -- ============================================
 local function setCameraLookAt(targetPos, smooth)
     if not targetPos then return false end
@@ -117,21 +111,23 @@ local function setCameraLookAt(targetPos, smooth)
 end
 
 -- ============================================
--- 3) DISPARO
+-- 3) SISTEMA DE DISPARO SEGURO
 -- ============================================
 local function performShoot(target)
     if not target or not target.Character then return false end
     local humanoid = target.Character:FindFirstChild("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then return false end
+    local rootPart = target.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoid or humanoid.Health <= 0 or not rootPart then return false end
     
-    if combatRemote then
-        -- Enviar el humanoid al servidor usando el remote detectado
+    -- Disparar a todos los remotes encontrados para asegurar impacto si el juego los valida
+    for _, remote in ipairs(availableRemotes) do
         pcall(function()
-            combatRemote:FireServer(humanoid)
+            remote:FireServer(humanoid)
+            remote:FireServer(rootPart)
+            remote:FireServer(target.Character)
         end)
-        return true
     end
-    return false
+    return true
 end
 
 -- ============================================
@@ -218,7 +214,7 @@ runService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- 6) CONTROLES Y TOGGLE
+-- 6) CONTROLES (PC / MÓVIL)
 -- ============================================
 if isPC then
     userInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -256,12 +252,7 @@ end
 -- ============================================
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "AimbotUI"
-if syn and syn.protect_gui then
-    syn.protect_gui(screenGui)
-    screenGui.Parent = coreGui
-else
-    screenGui.Parent = player:WaitForChild("PlayerGui")
-end
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 220, 0, 60)
@@ -305,4 +296,4 @@ runService.Heartbeat:Connect(function()
     end
 end)
 
-print("✅ Script cargado correctamente. F1 en PC / 3 toques en Móvil para apagar/encender.")
+print("✅ Script v2 cargado con éxito.")
