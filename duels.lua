@@ -1,29 +1,38 @@
--- SCRIPT COMPLETO: Aimbot + Disparo automático con simulación de legitimidad
--- Requiere: RemoteSpy para identificar el RemoteEvent de disparo exacto
+-- SCRIPT COMPLETO: Aimbot + AutoShoot con soporte PC/Móvil
+-- Corregido: MouseButton1 ahora usa UserInputType correctamente
 
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local runService = game:GetService("RunService")
+local userInputService = game:GetService("UserInputService")
 
 -- ============================================
 -- CONFIGURACIÓN (AJUSTAR SEGÚN REMOTESPY)
 -- ============================================
 local CONFIG = {
     TargetName = "wushang52",
-    WeaponDamageRemote = "WeaponDamage",  -- Nombre del RemoteEvent de daño
-    ShootRemote = "Shoot",                -- RemoteEvent para disparar (si existe)
-    ToolName = "Gun",                     -- Nombre de tu arma equipada
-    AimPart = "Head",                     -- Parte a apuntar (Head, HumanoidRootPart)
-    Smoothness = 0.3,                     -- 0 = instantáneo, 1 = muy lento
-    FOV = 120,                            -- Ángulo de campo de visión para activar
-    ShootKey = Enum.KeyCode.MouseButton1, -- Tecla para disparar
-    AutoShoot = true,                     -- Disparar automático al apuntar
-    CheckDistance = 100,                  -- Distancia máxima para apuntar
+    WeaponDamageRemote = "WeaponDamage",
+    ShootRemote = "Shoot",  -- Cambiar según RemoteSpy
+    ToolName = "Gun",
+    AimPart = "Head",
+    Smoothness = 0.3,
+    FOV = 120,
+    CheckDistance = 100,
+    AutoShoot = true,
+    ShootCooldown = 0.15,
 }
 
 -- ============================================
--- 1) OBTENER REMOTES DINÁMICAMENTE
+-- DETECTAR PLATAFORMA (PC / MÓVIL)
+-- ============================================
+local isMobile = userInputService.TouchEnabled
+local isPC = not isMobile
+
+print("📱 Plataforma detectada: " .. (isMobile and "Móvil" or "PC"))
+
+-- ============================================
+-- OBTENER REMOTES
 -- ============================================
 local function getRemote(name)
     local remote = replicatedStorage:FindFirstChild(name)
@@ -41,14 +50,12 @@ local weaponDamageRemote = getRemote(CONFIG.WeaponDamageRemote)
 local shootRemote = getRemote(CONFIG.ShootRemote)
 
 if not weaponDamageRemote then
-    warn("⚠️ RemoteEvent de daño NO encontrado. Usa RemoteSpy para identificar el nombre correcto.")
+    warn("⚠️ WeaponDamage NO encontrado. Usa RemoteSpy.")
     return
 end
 
-print("✅ WeaponDamage encontrado: " .. weaponDamageRemote.Name)
-
 -- ============================================
--- 2) FUNCIÓN DE AIMBOT (CÁLCULO VECTORIAL)
+-- FUNCIONES AIMBOT
 -- ============================================
 local function getTargetPosition()
     local target = game.Players:FindFirstChild(CONFIG.TargetName)
@@ -60,23 +67,9 @@ local function getTargetPosition()
     end
     if not targetPart then return nil end
     
-    -- Obtener posición con corrección por movimiento (predicción básica)
     local velocity = targetPart.Velocity or Vector3.new(0,0,0)
-    local prediction = velocity * 0.1  -- 100ms de predicción
+    local prediction = velocity * 0.1
     return targetPart.Position + prediction
-end
-
-local function calculateAimAngle(targetPos)
-    if not targetPos then return nil end
-    
-    local cameraPos = camera.CFrame.Position
-    local direction = (targetPos - cameraPos).Unit
-    
-    -- Calcular ángulos (en radianes)
-    local pitch = math.asin(-direction.Y)
-    local yaw = math.atan2(-direction.X, -direction.Z)
-    
-    return pitch, yaw
 end
 
 local function setCameraLookAt(targetPos, smooth)
@@ -86,10 +79,8 @@ local function setCameraLookAt(targetPos, smooth)
     local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)
     
     if smooth and smooth > 0 then
-        -- Interpolación suave (Slerp)
         local lerpFactor = math.min(smooth, 1)
-        local newCFrame = currentCFrame:Lerp(targetCFrame, lerpFactor)
-        camera.CFrame = newCFrame
+        camera.CFrame = currentCFrame:Lerp(targetCFrame, lerpFactor)
     else
         camera.CFrame = targetCFrame
     end
@@ -97,13 +88,12 @@ local function setCameraLookAt(targetPos, smooth)
 end
 
 -- ============================================
--- 3) FUNCIÓN DE DISPARO LEGÍTIMO
+-- FUNCIÓN DE DISPARO (LEGÍTIMO)
 -- ============================================
 local function performShoot()
-    -- Verificar que el arma esté equipada
+    -- Equipar arma si no está equipada
     local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
     if not tool or tool.Name ~= CONFIG.ToolName then
-        -- Buscar arma en el inventario y equiparla
         local backpack = player.Backpack
         for _, item in ipairs(backpack:GetChildren()) do
             if item:IsA("Tool") and string.find(item.Name:lower(), CONFIG.ToolName:lower()) then
@@ -118,40 +108,37 @@ local function performShoot()
         end
     end
     
-    -- Obtener Humanoid del objetivo
     local target = game.Players:FindFirstChild(CONFIG.TargetName)
     if not target or not target.Character then return false end
     
     local humanoid = target.Character:FindFirstChild("Humanoid")
     if not humanoid or humanoid.Health <= 0 then return false end
     
-    -- DISPARO CON REMOTE (si existe)
+    -- Disparo por Remote
     if shootRemote then
-        -- Simular disparo enviando el RemoteEvent
         shootRemote:FireServer(tool, humanoid)
     else
-        -- Si no hay Remote de disparo, usar WeaponDamage directamente
         weaponDamageRemote:FireServer(humanoid, 8238)
     end
     
-    -- Simular animación de disparo (opcional)
-    local handle = tool:FindFirstChild("Handle")
-    if handle then
-        local oldPos = handle.Position
-        handle.Velocity = handle.CFrame.LookVector * -50  -- Retroceso simulado
-        task.wait(0.05)
-        handle.Velocity = Vector3.new(0,0,0)
+    -- Simular retroceso (solo PC, en móvil no aplica)
+    if isPC then
+        local handle = tool:FindFirstChild("Handle")
+        if handle then
+            handle.Velocity = handle.CFrame.LookVector * -50
+            task.wait(0.05)
+            handle.Velocity = Vector3.new(0,0,0)
+        end
     end
     
     return true
 end
 
 -- ============================================
--- 4) BUCLE PRINCIPAL CON AIMBOT + SHOOT
+-- BUCLE PRINCIPAL (AIMBOT + AUTOSHOOT)
 -- ============================================
 local isActive = true
 local lastShootTime = 0
-local shootCooldown = 0.15  -- Segundos entre disparos
 
 runService.RenderStepped:Connect(function()
     if not isActive then return end
@@ -159,11 +146,9 @@ runService.RenderStepped:Connect(function()
     local targetPos = getTargetPosition()
     if not targetPos then return end
     
-    -- Verificar distancia
     local distance = (targetPos - camera.CFrame.Position).Magnitude
     if distance > CONFIG.CheckDistance then return end
     
-    -- Calcular ángulo de desviación (FOV check)
     local camLook = camera.CFrame.LookVector
     local toTarget = (targetPos - camera.CFrame.Position).Unit
     local angle = math.acos(camLook:Dot(toTarget))
@@ -171,40 +156,97 @@ runService.RenderStepped:Connect(function()
     
     if angleDeg > CONFIG.FOV then return end
     
-    -- Aplicar aimbot con suavizado
     setCameraLookAt(targetPos, CONFIG.Smoothness)
     
-    -- Disparo automático o manual
     if CONFIG.AutoShoot then
         local now = tick()
-        if now - lastShootTime >= shootCooldown then
+        if now - lastShootTime >= CONFIG.ShootCooldown then
             local success = performShoot()
-            if success then
-                lastShootTime = now
-            end
+            if success then lastShootTime = now end
         end
     end
 end)
 
 -- ============================================
--- 5) DISPARO MANUAL CON TECLA (opcional)
+-- DISPARO MANUAL (PC: Click Izquierdo | MÓVIL: Tocar pantalla)
 -- ============================================
-game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == CONFIG.ShootKey then
+if isPC then
+    -- PC: Click izquierdo del mouse (CORREGIDO)
+    userInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            performShoot()
+        end
+    end)
+else
+    -- MÓVIL: Toque en pantalla (cualquier toque)
+    userInputService.TouchTapInWorld:Connect(function()
         performShoot()
+    end)
+end
+
+-- ============================================
+-- TOGGLE ACTIVAR/DESACTIVAR (F1 en PC / Doble toque en móvil)
+-- ============================================
+if isPC then
+    userInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.F1 then
+            isActive = not isActive
+            print("Aimbot " .. (isActive and "ACTIVADO" or "DESACTIVADO"))
+        end
+    end)
+else
+    -- MÓVIL: Doble toque para toggle (3 toques rápidos)
+    local touchCount = 0
+    local lastTouchTime = 0
+    userInputService.TouchTapInWorld:Connect(function()
+        local now = tick()
+        if now - lastTouchTime < 0.5 then
+            touchCount = touchCount + 1
+            if touchCount >= 3 then
+                isActive = not isActive
+                print("Aimbot " .. (isActive and "ACTIVADO" or "DESACTIVADO"))
+                touchCount = 0
+            end
+        else
+            touchCount = 1
+        end
+        lastTouchTime = now
+    end)
+end
+
+-- ============================================
+-- INTERFAZ SIMPLE (OPCIONAL)
+-- ============================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 180, 0, 40)
+frame.Position = UDim2.new(0.5, -90, 0.9, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BackgroundTransparency = 0.4
+frame.Parent = screenGui
+
+local statusText = Instance.new("TextLabel")
+statusText.Size = UDim2.new(1, 0, 1, 0)
+statusText.BackgroundTransparency = 1
+statusText.Text = "🔴 Aimbot OFF"
+statusText.TextColor3 = Color3.fromRGB(255, 0, 0)
+statusText.Font = Enum.Font.SourceSansBold
+statusText.TextSize = 18
+statusText.Parent = frame
+
+-- Actualizar estado en la UI
+game:GetService("RunService").Heartbeat:Connect(function()
+    if isActive then
+        statusText.Text = "🟢 Aimbot ON - " .. CONFIG.TargetName
+        statusText.TextColor3 = Color3.fromRGB(0, 255, 0)
+    else
+        statusText.Text = "🔴 Aimbot OFF"
+        statusText.TextColor3 = Color3.fromRGB(255, 0, 0)
     end
 end)
 
--- ============================================
--- 6) TOGGLE ACTIVAR/DESACTIVAR (F1)
--- ============================================
-game:GetService("UserInputService").InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.F1 then
-        isActive = not isActive
-        print("Aimbot " .. (isActive and "ACTIVADO" or "DESACTIVADO"))
-    end
-end)
-
-print("✅ Aimbot + AutoShoot cargado. F1 para toggle. Apuntando a: " .. CONFIG.TargetName)
-print("📌 Si no dispara, usa RemoteSpy y ajusta CONFIG.ShootRemote")
+print("✅ Aimbot cargado. F1 (PC) o 3 toques (Móvil) para toggle.")
+print("🎯 Apuntando a: " .. CONFIG.TargetName)
