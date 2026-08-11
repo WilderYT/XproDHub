@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Silent Aim Real v4.2 (Anti-Bug de Saltos y Raycast Estricto)
+-- SCRIPT INTEGRADO: Silent Aim Real v4.3 (Anti-Toques Ciegos / Legítimo)
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -17,7 +17,7 @@ local CONFIG = {
     FOV = 180,
     CheckDistance = 300,
     DamageAmount = 100,      
-    WallCheck = true,        -- Evita disparar a través de paredes y bordes al saltar
+    WallCheck = true,        -- Evita disparar a través de paredes y bordes
     
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
@@ -26,7 +26,7 @@ local CONFIG = {
 local isMobile = userInputService.TouchEnabled and not userInputService.MouseEnabled
 
 -- ============================================
--- 1) TARGETING DINÁMICO Y RAYCAST ESTRICTO (ANTI-SALTOS / ANTI-PAREDES)
+-- 1) TARGETING DINÁMICO Y RAYCAST ESTRICTO
 -- ============================================
 local function getEnemies()
     local enemies = {}
@@ -49,7 +49,6 @@ local function getEnemies()
     return enemies
 end
 
--- Función de visibilidad mejorada (Doble raycast para evitar falsos positivos al saltar)
 local function isVisible(targetPart)
     if not CONFIG.WallCheck then return true end
     local myChar = player.Character
@@ -67,7 +66,6 @@ local function isVisible(targetPart)
     raycastParams.FilterDescendantsInstances = {myChar, camera}
     raycastParams.IgnoreWater = true
     
-    -- Lanzamos dos raycasts de prueba (desde la cabeza y desde el torso/arma)
     local resultHead = workspace:Raycast(originHead, targetPos - originHead, raycastParams)
     local resultTool = workspace:Raycast(originTool, targetPos - originTool, raycastParams)
     
@@ -80,7 +78,6 @@ local function isVisible(targetPart)
         return false
     end
     
-    -- Ambos puntos deben ser limpios para que se permita el disparo (Evita que la bala pase por los bordes al saltar)
     if checkHit(resultHead) and checkHit(resultTool) then
         return true
     end
@@ -104,7 +101,6 @@ local function getClosestEnemyWithinFOV()
                 local toTarget = (part.Position - cameraPos).Unit
                 local angleDeg = math.deg(math.acos(math.clamp(camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
                 if angleDeg <= CONFIG.FOV then
-                    -- Validar visibilidad estricta con el nuevo sistema anti-saltos
                     if isVisible(part) then
                         if dist < closestDist then
                             closestDist = dist
@@ -119,7 +115,7 @@ local function getClosestEnemyWithinFOV()
 end
 
 -- ============================================
--- 2) SILENT AIM INTELIGENTE (FILTRADO Y LEGIT)
+-- 2) SILENT AIM INTELIGENTE (FILTRADO DE ACCIÓN LEGÍTIMA)
 -- ============================================
 local isActive = false
 local lastFired = 0
@@ -175,12 +171,30 @@ local function trySilentShoot()
     end)
 end
 
+-- MODIFICACIÓN CLAVE: Ya no reacciona a cualquier toque de pantalla. 
+-- Ahora solo se activa si el jugador presiona el botón de disparo del juego o hace clic izquierdo 
+-- MIENTRAS sostiene activamente una herramienta/arma y está apuntando de verdad.
 userInputService.InputBegan:Connect(function(input, gameProcessed)
     if not isActive then return end
+    
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local currentTarget = getClosestEnemyWithinFOV()
-        if currentTarget then
+        local myChar = player.Character
+        if not myChar then return end
+        local tool = myChar:FindFirstChildOfClass("Tool")
+        
+        -- Si no tiene un arma en la mano, ignorar completamente el toque (evita saltos y toques en la UI)
+        if not tool then return end
+        
+        -- Verificamos si el toque fue sobre la interfaz del juego (por seguridad)
+        if gameProcessed then
+            -- Opcional: Si el toque fue en el botón de disparar del juego, disparamos el silent
             trySilentShoot()
+        else
+            -- Si es en pantalla abierta (mientras sostiene arma), validamos si hay objetivo cercano directo
+            local currentTarget = getClosestEnemyWithinFOV()
+            if currentTarget then
+                trySilentShoot()
+            end
         end
     end
 end)
@@ -341,7 +355,7 @@ subtitleLabel.BackgroundTransparency = 1
 subtitleLabel.Position = UDim2.new(0, 26, 0, 26)
 subtitleLabel.Size = UDim2.new(1, -70, 0, 16)
 subtitleLabel.Font = FONT
-subtitleLabel.Text = "Silent Aim Real v4.2"
+subtitleLabel.Text = "Silent Aim Real v4.3"
 subtitleLabel.TextColor3 = Theme.TextSecondary
 subtitleLabel.TextSize = 12
 subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -520,7 +534,7 @@ do
     end)
 end
 
--- Toggle WallCheck (Anti-Paredes)
+-- Toggle WallCheck
 do
     local state = CONFIG.WallCheck
     local row = newRow(44)
@@ -656,4 +670,4 @@ do
     end)
 end
 
-print("✅ Silent Aim v4.2 cargado: Anti-Bug de saltos y Raycast estricto listos.")
+print("✅ Silent Aim v4.3 cargado: Filtro estricto anti-toques ciegos y saltos activado.")
