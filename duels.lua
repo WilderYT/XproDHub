@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Aimbot + ESP Dinámico + ModernGUI
+-- SCRIPT INTEGRADO: Aimbot + ESP Dinámico + ModernGUI (Actualizado)
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -27,24 +27,6 @@ local CONFIG = {
 
 local isMobile = userInputService.TouchEnabled and not userInputService.MouseEnabled
 local isPC = not isMobile
-
--- ============================================
--- BÚSQUEDA SEGURA DE REMOTES DE COMBATE
--- ============================================
-local function getCombatRemotes()
-    local remotes = {}
-    for _, child in ipairs(replicatedStorage:GetDescendants()) do
-        if child:IsA("RemoteEvent") then
-            local name = child.Name:lower()
-            if string.find(name, "shoot") or string.find(name, "fire") or string.find(name, "damage") or string.find(name, "hit") or string.find(name, "gun") then
-                table.insert(remotes, child)
-            end
-        end
-    end
-    return remotes
-end
-
-local availableRemotes = getCombatRemotes()
 
 -- ============================================
 -- 1) TARGETING DINÁMICO
@@ -114,21 +96,28 @@ local function setCameraLookAt(targetPos, smooth)
 end
 
 -- ============================================
--- 3) SISTEMA DE DISPARO SEGURO
+-- 3) SISTEMA DE DISPARO REAL (CON EVENTO DE PISTOLA)
 -- ============================================
+local pistolFireRemote = replicatedStorage:WaitForChild("DuelEvents"):WaitForChild("PistolFire")
+
 local function performShoot(target)
     if not target or not target.Character then return false end
-    local humanoid = target.Character:FindFirstChild("Humanoid")
-    local rootPart = target.Character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or humanoid.Health <= 0 or not rootPart then return false end
     
-    for _, remote in ipairs(availableRemotes) do
-        pcall(function()
-            remote:FireServer(humanoid)
-            remote:FireServer(rootPart)
-            remote:FireServer(target.Character)
-        end)
-    end
+    local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
+    local myChar = player.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    
+    if not targetPart or not myRoot then return false end
+    
+    -- Argumento 1: Posición de origen (Tus pies o posición actual)
+    local originPos = myRoot.Position
+    -- Argumento 2: Posición de destino (La cabeza o centro del enemigo)
+    local targetPos = targetPart.Position
+    
+    pcall(function()
+        pistolFireRemote:FireServer(originPos, targetPos)
+    end)
+    
     return true
 end
 
@@ -515,7 +504,7 @@ do
 
     button.MouseButton1Click:Connect(function()
         state = not state
-        isActive = state -- Enlace directo con la variable global del Aimbot
+        isActive = state
         render(true)
     end)
 end
@@ -583,7 +572,7 @@ do
 
     button.MouseButton1Click:Connect(function()
         state = not state
-        CONFIG.ESPEnabled = state -- Enlace directo con el ESP
+        CONFIG.ESPEnabled = state
         render(true)
     end)
 end
@@ -668,7 +657,7 @@ do
             dropdownBtn.Text = displayNames[i] .. "  ▾"
             list.Visible = false
             open = false
-            CONFIG.TargetMode = optValue -- Enlace directo con la lógica de selección de enemigos
+            CONFIG.TargetMode = optValue
         end)
     end
 
@@ -678,4 +667,4 @@ do
     end)
 end
 
-print("✅ Script integrado con UI moderna con éxito.")
+print("✅ Script integrado con UI moderna y sistema de disparo real actualizado con éxito.")
