@@ -96,25 +96,38 @@ local function setCameraLookAt(targetPos, smooth)
 end
 
 -- ============================================
--- 3) SISTEMA DE DISPARO REAL (CON EVENTO DE PISTOLA)
+-- 3) SISTEMA DE DISPARO REAL (ESTABLE Y SEGURO)
 -- ============================================
-local pistolFireRemote = replicatedStorage:WaitForChild("DuelEvents"):WaitForChild("PistolFire")
+local duelEvents = replicatedStorage:FindFirstChild("DuelEvents")
+local pistolFireRemote = duelEvents and duelEvents:FindFirstChild("PistolFire")
 
 local function performShoot(target)
-    if not target or not target.Character then return false end
+    -- Validación segura con FindFirstChild para evitar errores si los elementos aún no cargan
+    local eventsFolder = replicatedStorage:FindFirstChild("DuelEvents")
+    local fireRemote = eventsFolder and eventsFolder:FindFirstChild("PistolFire")
+    
+    if not target or not target.Character or not fireRemote then return false end
     
     local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
     local myChar = player.Character
     if not myChar then return false end
     
-    -- Intentar encontrar el arma equipada (Tool) o usar la cabeza/cámara como origen realista
     local tool = myChar:FindFirstChildOfClass("Tool")
-    local originPos
+    if not tool then
+        local backpack = player:FindFirstChildOfClass("Backpack")
+        if backpack then
+            local bpTool = backpack:FindFirstChildOfClass("Tool")
+            if bpTool and myChar:FindFirstChild("Humanoid") then
+                myChar.Humanoid:EquipTool(bpTool)
+                tool = bpTool
+            end
+        end
+    end
     
+    local originPos
     if tool and tool:FindFirstChild("Handle") then
         originPos = tool.Handle.Position
     else
-        -- Si no tiene herramienta en mano, usamos la posición de la cabeza o la cámara
         local head = myChar:FindFirstChild("Head")
         originPos = head and head.Position or camera.CFrame.Position
     end
@@ -122,9 +135,14 @@ local function performShoot(target)
     local targetPos = targetPart and targetPart.Position
     if not originPos or not targetPos then return false end
     
-    -- Disparo seguro y controlado al servidor
+    if tool then
+        pcall(function()
+            tool:Activate()
+        end)
+    end
+    
     pcall(function()
-        pistolFireRemote:FireServer(originPos, targetPos)
+        fireRemote:FireServer(originPos, targetPos)
     end)
     
     return true
