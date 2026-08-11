@@ -19,7 +19,7 @@ local CONFIG = {
     
     Smoothness = 0.25,
     AutoShoot = true,
-    ShootCooldown = 0.1,
+    ShootCooldown = 0.6, -- Ajustado para evitar efecto ametralladora y saturación
     
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
@@ -105,15 +105,24 @@ local function performShoot(target)
     
     local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
     local myChar = player.Character
-    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myChar then return false end
     
-    if not targetPart or not myRoot then return false end
+    -- Intentar encontrar el arma equipada (Tool) o usar la cabeza/cámara como origen realista
+    local tool = myChar:FindFirstChildOfClass("Tool")
+    local originPos
     
-    -- Argumento 1: Posición de origen (Tus pies o posición actual)
-    local originPos = myRoot.Position
-    -- Argumento 2: Posición de destino (La cabeza o centro del enemigo)
-    local targetPos = targetPart.Position
+    if tool and tool:FindFirstChild("Handle") then
+        originPos = tool.Handle.Position
+    else
+        -- Si no tiene herramienta en mano, usamos la posición de la cabeza o la cámara
+        local head = myChar:FindFirstChild("Head")
+        originPos = head and head.Position or camera.CFrame.Position
+    end
     
+    local targetPos = targetPart and targetPart.Position
+    if not originPos or not targetPos then return false end
+    
+    -- Disparo seguro y controlado al servidor
     pcall(function()
         pistolFireRemote:FireServer(originPos, targetPos)
     end)
