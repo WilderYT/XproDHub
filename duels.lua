@@ -1,120 +1,95 @@
--- Script completo con GUI para auto-farm de kills (wushang52)
--- Creado por Vrex488 - Modo automático con interruptor ON/OFF
+-- Script mejorado con bypass de validaciones y rate limiting
+-- Estrategia: simular estado de ronda válida, spam controlado y referencias frescas
 
 local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
+local replicatedStorage = game:GetService("ReplicatedStorage")
+local weaponDamage = replicatedStorage:FindFirstChild("WeaponDamage")
 
--- Crear GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player:WaitForChild("PlayerGui")
+if not weaponDamage then
+    warn("WeaponDamage no encontrado")
+    return
+end
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 120)
-frame.Position = UDim2.new(0.5, -125, 0.5, -60)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BackgroundTransparency = 0.2
-frame.Active = true
-frame.Draggable = true
-frame.Parent = screenGui
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-title.Text = "Auto-Farm Kills [wushang52]"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 18
-title.Parent = frame
-
-local statusLabel = Instance.new("TextLabel")
-statusLabel.Size = UDim2.new(0.6, 0, 0, 30)
-statusLabel.Position = UDim2.new(0, 10, 0, 40)
-statusLabel.BackgroundTransparency = 1
-statusLabel.Text = "Estado: OFF"
-statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-statusLabel.Font = Enum.Font.SourceSans
-statusLabel.TextSize = 16
-statusLabel.TextXAlignment = Enum.TextXAlignment.Left
-statusLabel.Parent = frame
-
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 80, 0, 35)
-toggleButton.Position = UDim2.new(0.6, 10, 0, 40)
-toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-toggleButton.Text = "ON"
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.TextSize = 16
-toggleButton.Parent = frame
-
-local killCounterLabel = Instance.new("TextLabel")
-killCounterLabel.Size = UDim2.new(1, 0, 0, 25)
-killCounterLabel.Position = UDim2.new(0, 0, 0, 85)
-killCounterLabel.BackgroundTransparency = 1
-killCounterLabel.Text = "Kills: 0"
-killCounterLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-killCounterLabel.Font = Enum.Font.SourceSans
-killCounterLabel.TextSize = 14
-killCounterLabel.Parent = frame
-
--- Variables de control
-local autoFarmActive = false
-local killCount = 0
-local connection = nil
-
--- Función de ataque
-local function attackTarget()
-    local p = game.Players:FindFirstChild("wushang52")
-    if p and p.Character and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-        local replicatedStorage = game:GetService("ReplicatedStorage")
-        local weaponDamage = replicatedStorage:FindFirstChild("WeaponDamage")
-        if weaponDamage then
-            weaponDamage:FireServer(p.Character.Humanoid, 8238)
-            killCount = killCount + 1
-            killCounterLabel.Text = "Kills: " .. killCount
-        end
+-- 1) FORZAR ESTADO DE RONDA (simular que estamos en juego)
+local function forceRoundState()
+    local roundState = replicatedStorage:FindFirstChild("RoundState") or game:GetService("ReplicatedStorage"):FindFirstChild("GameState")
+    if roundState then
+        -- Intentar cambiar el estado localmente (puede no tener efecto, pero útil para algunos juegos)
+        if roundState:IsA("BoolValue") then roundState.Value = true end
+        if roundState:IsA("StringValue") then roundState.Value = "Playing" end
+        if roundState:IsA("NumberValue") then roundState.Value = 1 end
+    end
+    -- Simular que tenemos un arma equipada (si existe el evento de equipar)
+    local equipment = player.Character:FindFirstChild("Tool")
+    if not equipment then
+        local fakeTool = Instance.new("Tool")
+        fakeTool.Name = "FakeWeapon"
+        fakeTool.Parent = player.Character
+        wait(0.1)
+        fakeTool:Destroy()
     end
 end
 
--- Función para iniciar/detener auto-farm
-local function toggleAutoFarm()
-    autoFarmActive = not autoFarmActive
+-- 2) OBTENER HUMANOID FRESCO (cada ataque)
+local function getFreshHumanoid(targetName)
+    local target = game.Players:FindFirstChild(targetName)
+    if not target or not target.Character then return nil end
+    local humanoid = target.Character:FindFirstChild("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return nil end
+    return humanoid
+end
+
+-- 3) SPAM INTELIGENTE CON JITTER (evitar rate limiting)
+local function attackWithJitter(targetName)
+    local humanoid = getFreshHumanoid(targetName)
+    if not humanoid then return false end
     
-    if autoFarmActive then
-        statusLabel.Text = "Estado: ON"
-        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        toggleButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-        toggleButton.Text = "OFF"
-        
-        -- Iniciar bucle
-        connection = game:GetService("RunService").Heartbeat:Connect(function()
-            if autoFarmActive then
-                attackTarget()
-                wait(0.3)
-            end
-        end)
-    else
-        statusLabel.Text = "Estado: OFF"
-        statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-        toggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-        toggleButton.Text = "ON"
-        
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
-    end
+    -- Enviar con parámetros adicionales para simular legitimidad
+    local args = {
+        [1] = humanoid,
+        [2] = 8238,
+        [3] = tick(),  -- timestamp para simular fresh
+        [4] = player.Character.PrimaryPart.Position  -- posición actual
+    }
+    
+    weaponDamage:FireServer(unpack(args))
+    return true
 end
 
--- Evento del botón
-toggleButton.MouseButton1Click:Connect(toggleAutoFarm)
+-- 4) BUCLE PRINCIPAL CON BACKOFF EXPONENCIAL
+local targetName = "wushang52"
+local successCount = 0
+local failCount = 0
+local baseWait = 0.5
+local maxWait = 3.0
+local currentWait = baseWait
 
--- Ataque manual con tecla 'X'
-mouse.KeyDown:Connect(function(key)
-    if key == "x" then
-        attackTarget()
+while true do
+    -- Forzar estado de ronda antes de cada ciclo
+    forceRoundState()
+    
+    local success = attackWithJitter(targetName)
+    
+    if success then
+        successCount = successCount + 1
+        failCount = 0
+        currentWait = baseWait  -- Resetear wait si funciona
+        print("Ataque exitoso #" .. successCount)
+    else
+        failCount = failCount + 1
+        -- Backoff exponencial si falla
+        currentWait = math.min(currentWait * 1.5, maxWait)
+        print("Fallo #" .. failCount .. " - esperando " .. currentWait .. "s")
     end
-end)
-
-print("GUI cargada. Presiona 'X' para ataque manual. Botón ON/OFF para auto-farm.")
+    
+    -- Si falla demasiado, intentar forzar respawn del objetivo
+    if failCount > 10 then
+        local target = game.Players:FindFirstChild(targetName)
+        if target and target.Character then
+            target.Character.Humanoid.Health = 0  -- Forzar muerte para respawn
+        end
+        failCount = 0
+    end
+    
+    wait(currentWait + math.random(0, 20) / 100)  -- Jitter aleatorio
+end
