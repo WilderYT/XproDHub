@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Silent Aim Real v4.1 (Con Raycast anti-paredes y filtro legit)
+-- SCRIPT INTEGRADO: Silent Aim Real v4.2 (Anti-Bug de Saltos y Raycast Estricto)
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -17,7 +17,7 @@ local CONFIG = {
     FOV = 180,
     CheckDistance = 300,
     DamageAmount = 100,      
-    WallCheck = true,        -- ¡NUEVO! Evita disparar a través de paredes
+    WallCheck = true,        -- Evita disparar a través de paredes y bordes al saltar
     
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
@@ -26,7 +26,7 @@ local CONFIG = {
 local isMobile = userInputService.TouchEnabled and not userInputService.MouseEnabled
 
 -- ============================================
--- 1) TARGETING DINÁMICO Y RAYCAST (ANTI-PAREDES)
+-- 1) TARGETING DINÁMICO Y RAYCAST ESTRICTO (ANTI-SALTOS / ANTI-PAREDES)
 -- ============================================
 local function getEnemies()
     local enemies = {}
@@ -49,31 +49,42 @@ local function getEnemies()
     return enemies
 end
 
--- Función para verificar si hay paredes u obstáculos en medio (Raycast)
+-- Función de visibilidad mejorada (Doble raycast para evitar falsos positivos al saltar)
 local function isVisible(targetPart)
     if not CONFIG.WallCheck then return true end
     local myChar = player.Character
-    if not myChar or not myChar:FindFirstChild("Head") then return false end
+    if not myChar or not myChar:FindFirstChild("Head") or not myChar:FindFirstChild("HumanoidRootPart") then return false end
     
-    local origin = myChar.Head.Position
-    local direction = (targetPart.Position - origin)
+    local tool = myChar:FindFirstChildOfClass("Tool")
+    local originHead = myChar.Head.Position
+    local originRoot = myChar.HumanoidRootPart.Position
+    local originTool = (tool and tool:FindFirstChild("Handle")) and tool.Handle.Position or originRoot
+    
+    local targetPos = targetPart.Position
     
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     raycastParams.FilterDescendantsInstances = {myChar, camera}
     raycastParams.IgnoreWater = true
     
-    local result = workspace:Raycast(origin, direction, raycastParams)
+    -- Lanzamos dos raycasts de prueba (desde la cabeza y desde el torso/arma)
+    local resultHead = workspace:Raycast(originHead, targetPos - originHead, raycastParams)
+    local resultTool = workspace:Raycast(originTool, targetPos - originTool, raycastParams)
     
-    -- Si el raycast no choca con nada, o choca directamente con el personaje del enemigo, es visible
-    if not result then 
-        return true 
-    else
+    local function checkHit(result)
+        if not result then return true end
         local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
         if hitModel and hitModel == targetPart.Parent then
             return true
         end
+        return false
     end
+    
+    -- Ambos puntos deben ser limpios para que se permita el disparo (Evita que la bala pase por los bordes al saltar)
+    if checkHit(resultHead) and checkHit(resultTool) then
+        return true
+    end
+    
     return false
 end
 
@@ -93,7 +104,7 @@ local function getClosestEnemyWithinFOV()
                 local toTarget = (part.Position - cameraPos).Unit
                 local angleDeg = math.deg(math.acos(math.clamp(camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
                 if angleDeg <= CONFIG.FOV then
-                    -- Validar que esté visible (que no haya una pared en medio si el WallCheck está activo)
+                    -- Validar visibilidad estricta con el nuevo sistema anti-saltos
                     if isVisible(part) then
                         if dist < closestDist then
                             closestDist = dist
@@ -145,32 +156,28 @@ local function trySilentShoot()
     local originPos = tool:FindFirstChild("Handle") and tool.Handle.Position or myChar.Head.Position
     local targetPos = targetPart.Position
     
-    -- Si hay un obstáculo exacto entre la pistola y el objetivo por el raycast, ajustamos el destino visual para que choque contra la pared de forma realista
     if CONFIG.WallCheck then
         local raycastParams = RaycastParams.new()
         raycastParams.FilterType = Enum.RaycastFilterType.Exclude
         raycastParams.FilterDescendantsInstances = {myChar, camera}
         local result = workspace:Raycast(originPos, (targetPos - originPos), raycastParams)
         if result then
-            targetPos = result.Position -- La línea se detiene legítimamente en la pared golpeada
+            targetPos = result.Position
         end
     end
     
     pcall(function()
         pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
         
-        -- Solo aplicamos daño si realmente hay línea de visión limpia al enemigo
         if weaponDamageRemote and isVisible(targetPart) then
             weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount)
         end
     end)
 end
 
--- Activación mejorada: Solo dispara si haces click y hay un blanco legítimo a la vista
 userInputService.InputBegan:Connect(function(input, gameProcessed)
     if not isActive then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        -- Verificamos si hay un objetivo válido antes de procesar el disparo visual
         local currentTarget = getClosestEnemyWithinFOV()
         if currentTarget then
             trySilentShoot()
@@ -334,7 +341,7 @@ subtitleLabel.BackgroundTransparency = 1
 subtitleLabel.Position = UDim2.new(0, 26, 0, 26)
 subtitleLabel.Size = UDim2.new(1, -70, 0, 16)
 subtitleLabel.Font = FONT
-subtitleLabel.Text = "Silent Aim Real v4.1 (Legit)"
+subtitleLabel.Text = "Silent Aim Real v4.2"
 subtitleLabel.TextColor3 = Theme.TextSecondary
 subtitleLabel.TextSize = 12
 subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -601,7 +608,7 @@ do
     statusLabel.Position = UDim2.new(1, -96, 0, 0)
     statusLabel.Size = UDim2.new(0, 40, 1, 0)
     statusLabel.Font = FONT_BOLD
-    statusLabel.TextSize.TextSize = 11
+    statusLabel.TextSize = 11
     statusLabel.Parent = row
 
     local track = Instance.new("Frame")
@@ -649,4 +656,4 @@ do
     end)
 end
 
-print("✅ Silent Aim v4.1 cargado: Raycast anti-paredes y filtro legit activados.")
+print("✅ Silent Aim v4.2 cargado: Anti-Bug de saltos y Raycast estricto listos.")
