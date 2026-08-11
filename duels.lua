@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Silent Aim Real v4.0 (PistolFire + WeaponDamage)
+-- SCRIPT INTEGRADO: Silent Aim Real v4.1 (Con Raycast anti-paredes y filtro legit)
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -16,7 +16,8 @@ local CONFIG = {
     AimPart = "Head",
     FOV = 180,
     CheckDistance = 300,
-    DamageAmount = 100,      -- Daño suficiente para abatir según la lógica del juego
+    DamageAmount = 100,      
+    WallCheck = true,        -- ¡NUEVO! Evita disparar a través de paredes
     
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
@@ -25,7 +26,7 @@ local CONFIG = {
 local isMobile = userInputService.TouchEnabled and not userInputService.MouseEnabled
 
 -- ============================================
--- 1) TARGETING DINÁMICO
+-- 1) TARGETING DINÁMICO Y RAYCAST (ANTI-PAREDES)
 -- ============================================
 local function getEnemies()
     local enemies = {}
@@ -48,6 +49,34 @@ local function getEnemies()
     return enemies
 end
 
+-- Función para verificar si hay paredes u obstáculos en medio (Raycast)
+local function isVisible(targetPart)
+    if not CONFIG.WallCheck then return true end
+    local myChar = player.Character
+    if not myChar or not myChar:FindFirstChild("Head") then return false end
+    
+    local origin = myChar.Head.Position
+    local direction = (targetPart.Position - origin)
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {myChar, camera}
+    raycastParams.IgnoreWater = true
+    
+    local result = workspace:Raycast(origin, direction, raycastParams)
+    
+    -- Si el raycast no choca con nada, o choca directamente con el personaje del enemigo, es visible
+    if not result then 
+        return true 
+    else
+        local hitModel = result.Instance:FindFirstAncestorOfClass("Model")
+        if hitModel and hitModel == targetPart.Parent then
+            return true
+        end
+    end
+    return false
+end
+
 local function getClosestEnemyWithinFOV()
     local enemies = getEnemies()
     if #enemies == 0 then return nil end
@@ -64,9 +93,12 @@ local function getClosestEnemyWithinFOV()
                 local toTarget = (part.Position - cameraPos).Unit
                 local angleDeg = math.deg(math.acos(math.clamp(camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
                 if angleDeg <= CONFIG.FOV then
-                    if dist < closestDist then
-                        closestDist = dist
-                        closest = plr
+                    -- Validar que esté visible (que no haya una pared en medio si el WallCheck está activo)
+                    if isVisible(part) then
+                        if dist < closestDist then
+                            closestDist = dist
+                            closest = plr
+                        end
                     end
                 end
             end
@@ -76,11 +108,11 @@ local function getClosestEnemyWithinFOV()
 end
 
 -- ============================================
--- 2) SILENT AIM INTELIGENTE (CON REMOTES REALES)
+-- 2) SILENT AIM INTELIGENTE (FILTRADO Y LEGIT)
 -- ============================================
 local isActive = false
 local lastFired = 0
-local COOLDOWN_TIME = 0.5 -- Cooldown estricto para evitar spam y respetar el arma
+local COOLDOWN_TIME = 0.5 
 
 local function trySilentShoot()
     if not isActive then return end
@@ -88,11 +120,9 @@ local function trySilentShoot()
     local myChar = player.Character
     if not myChar then return end
     
-    -- Validar que tengas un arma en la mano (Tool equipada)
     local tool = myChar:FindFirstChildOfClass("Tool")
     if not tool then return end
     
-    -- Control de Cooldown estricto
     if tick() - lastFired < COOLDOWN_TIME then return end
     
     local target = getClosestEnemyWithinFOV()
@@ -112,26 +142,39 @@ local function trySilentShoot()
     
     lastFired = tick()
     
-    -- Origen desde la herramienta o cabeza, destino hacia la cabeza del enemigo en pantalla
     local originPos = tool:FindFirstChild("Handle") and tool.Handle.Position or myChar.Head.Position
     local targetPos = targetPart.Position
     
+    -- Si hay un obstáculo exacto entre la pistola y el objetivo por el raycast, ajustamos el destino visual para que choque contra la pared de forma realista
+    if CONFIG.WallCheck then
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+        raycastParams.FilterDescendantsInstances = {myChar, camera}
+        local result = workspace:Raycast(originPos, (targetPos - originPos), raycastParams)
+        if result then
+            targetPos = result.Position -- La línea se detiene legítimamente en la pared golpeada
+        end
+    end
+    
     pcall(function()
-        -- 1. Ejecutamos el disparo visual con los vectores exactos descubiertos
         pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
         
-        -- 2. Aplicamos el daño real directo al Humanoid del enemigo capturado
-        if weaponDamageRemote then
+        -- Solo aplicamos daño si realmente hay línea de visión limpia al enemigo
+        if weaponDamageRemote and isVisible(targetPart) then
             weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount)
         end
     end)
 end
 
--- Detectar clics o toques para activar el Silent Aim bajo demanda del usuario
+-- Activación mejorada: Solo dispara si haces click y hay un blanco legítimo a la vista
 userInputService.InputBegan:Connect(function(input, gameProcessed)
     if not isActive then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        trySilentShoot()
+        -- Verificamos si hay un objetivo válido antes de procesar el disparo visual
+        local currentTarget = getClosestEnemyWithinFOV()
+        if currentTarget then
+            trySilentShoot()
+        end
     end
 end)
 
@@ -240,7 +283,7 @@ screenGui.IgnoreGuiInset = true
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local windowSize = isMobile and UDim2.fromOffset(280, 380) or UDim2.fromOffset(340, 420)
+local windowSize = isMobile and UDim2.fromOffset(280, 420) or UDim2.fromOffset(340, 460)
 
 local main = Instance.new("Frame")
 main.Name = "MainWindow"
@@ -291,7 +334,7 @@ subtitleLabel.BackgroundTransparency = 1
 subtitleLabel.Position = UDim2.new(0, 26, 0, 26)
 subtitleLabel.Size = UDim2.new(1, -70, 0, 16)
 subtitleLabel.Font = FONT
-subtitleLabel.Text = "Silent Aim Real v4.0"
+subtitleLabel.Text = "Silent Aim Real v4.1 (Legit)"
 subtitleLabel.TextColor3 = Theme.TextSecondary
 subtitleLabel.TextSize = 12
 subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -400,7 +443,7 @@ local function addSection(text)
     lbl.Parent = content
 end
 
-addSection("Combate")
+addSection("Combate Legítimo")
 
 -- Toggle Silent Aim
 do
@@ -470,16 +513,16 @@ do
     end)
 end
 
--- Toggle ESP
+-- Toggle WallCheck (Anti-Paredes)
 do
-    local state = CONFIG.ESPEnabled
+    local state = CONFIG.WallCheck
     local row = newRow(44)
     local label = Instance.new("TextLabel")
     label.BackgroundTransparency = 1
     label.Position = UDim2.new(0, 14, 0, 0)
     label.Size = UDim2.new(1, -110, 1, 0)
     label.Font = FONT
-    label.Text = "ESP Jugadores"
+    label.Text = "Anti-Paredes (Raycast)"
     label.TextColor3 = Theme.TextPrimary
     label.TextSize = 14
     label.TextXAlignment = Enum.TextXAlignment.Left
@@ -533,9 +576,77 @@ do
 
     button.MouseButton1Click:Connect(function()
         state = not state
+        CONFIG.WallCheck = state
+        render(true)
+    end)
+end
+
+-- Toggle ESP
+do
+    local state = CONFIG.ESPEnabled
+    local row = newRow(44)
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Position = UDim2.new(0, 14, 0, 0)
+    label.Size = UDim2.new(1, -110, 1, 0)
+    label.Font = FONT
+    label.Text = "ESP Jugadores"
+    label.TextColor3 = Theme.TextPrimary
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Position = UDim2.new(1, -96, 0, 0)
+    statusLabel.Size = UDim2.new(0, 40, 1, 0)
+    statusLabel.Font = FONT_BOLD
+    statusLabel.TextSize.TextSize = 11
+    statusLabel.Parent = row
+
+    local track = Instance.new("Frame")
+    track.Size = UDim2.fromOffset(42, 22)
+    track.Position = UDim2.new(1, -50, 0.5, -11)
+    track.BackgroundColor3 = Theme.PanelAlt
+    track.BorderSizePixel = 0
+    track.Parent = row
+    corner(track, 11)
+    stroke(track, Theme.Stroke, 1, 0.4)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(16, 16)
+    knob.Position = UDim2.new(0, 3, 0.5, -8)
+    knob.BackgroundColor3 = Theme.TextPrimary
+    knob.BorderSizePixel = 0
+    knob.Parent = track
+    corner(knob, 8)
+
+    local button = Instance.new("TextButton")
+    button.BackgroundTransparency = 1
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.Text = ""
+    button.Parent = row
+
+    local function render(animated)
+        if state then
+            statusLabel.Text = "ON"
+            statusLabel.TextColor3 = Theme.OnColor
+            local goalPos = UDim2.new(0, 23, 0.5, -8)
+            if animated then tween(knob, {Position = goalPos}, 0.18) tween(track, {BackgroundColor3 = Theme.AccentBlue}, 0.18) else knob.Position = goalPos track.BackgroundColor3 = Theme.AccentBlue end
+        else
+            statusLabel.Text = "OFF"
+            statusLabel.TextColor3 = Theme.OffColor
+            local goalPos = UDim2.new(0, 3, 0.5, -8)
+            if animated then tween(knob, {Position = goalPos}, 0.18) tween(track, {BackgroundColor3 = Theme.PanelAlt}, 0.18) else knob.Position = goalPos track.BackgroundColor3 = Theme.PanelAlt end
+        end
+    end
+    render(false)
+
+    button.MouseButton1Click:Connect(function()
+        state = not state
         CONFIG.ESPEnabled = state
         render(true)
     end)
 end
 
-print("✅ Silent Aim v4.0 cargado correctamente respetando WeaponDamage y PistolFire.")
+print("✅ Silent Aim v4.1 cargado: Raycast anti-paredes y filtro legit activados.")
