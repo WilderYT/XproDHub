@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Silent Aim Real v4.3 (Anti-Toques Ciegos / Legítimo)
+-- SCRIPT INTEGRADO: Silent Aim Real v4.4 (Anti-Disparos Fantasmas / Tool.Activated Puro)
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -115,11 +115,11 @@ local function getClosestEnemyWithinFOV()
 end
 
 -- ============================================
--- 2) SILENT AIM INTELIGENTE (FILTRADO DE ACCIÓN LEGÍTIMA)
+-- 2) SILENT AIM INTELIGENTE (ENGANCHADO A TOOL.ACTIVATED)
 -- ============================================
 local isActive = false
 local lastFired = 0
-local COOLDOWN_TIME = 0.5 
+local COOLDOWN_TIME = 0.35 
 
 local function trySilentShoot()
     if not isActive then return end
@@ -171,32 +171,24 @@ local function trySilentShoot()
     end)
 end
 
--- MODIFICACIÓN CLAVE: Ya no reacciona a cualquier toque de pantalla. 
--- Ahora solo se activa si el jugador presiona el botón de disparo del juego o hace clic izquierdo 
--- MIENTRAS sostiene activamente una herramienta/arma y está apuntando de verdad.
-userInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not isActive then return end
-    
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local myChar = player.Character
-        if not myChar then return end
-        local tool = myChar:FindFirstChildOfClass("Tool")
-        
-        -- Si no tiene un arma en la mano, ignorar completamente el toque (evita saltos y toques en la UI)
-        if not tool then return end
-        
-        -- Verificamos si el toque fue sobre la interfaz del juego (por seguridad)
-        if gameProcessed then
-            -- Opcional: Si el toque fue en el botón de disparar del juego, disparamos el silent
+-- VINCULACIÓN NATIVA SEGURA: Solo se ejecuta cuando el juego detecta que tu arma fue activada legítimamente.
+local function setupTool(tool)
+    if tool:IsA("Tool") then
+        tool.Activated:Connect(function()
             trySilentShoot()
-        else
-            -- Si es en pantalla abierta (mientras sostiene arma), validamos si hay objetivo cercano directo
-            local currentTarget = getClosestEnemyWithinFOV()
-            if currentTarget then
-                trySilentShoot()
-            end
-        end
+        end)
     end
+end
+
+if player.Character then
+    for _, item in ipairs(player.Character:GetChildren()) do
+        setupTool(item)
+    end
+    player.Character.ChildAdded:Connect(setupTool)
+end
+
+player.CharacterAdded:Connect(function(newChar)
+    newChar.ChildAdded:Connect(setupTool)
 end)
 
 -- ============================================
@@ -355,7 +347,7 @@ subtitleLabel.BackgroundTransparency = 1
 subtitleLabel.Position = UDim2.new(0, 26, 0, 26)
 subtitleLabel.Size = UDim2.new(1, -70, 0, 16)
 subtitleLabel.Font = FONT
-subtitleLabel.Text = "Silent Aim Real v4.3"
+subtitleLabel.Text = "Silent Aim Real v4.4"
 subtitleLabel.TextColor3 = Theme.TextSecondary
 subtitleLabel.TextSize = 12
 subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -670,4 +662,4 @@ do
     end)
 end
 
-print("✅ Silent Aim v4.3 cargado: Filtro estricto anti-toques ciegos y saltos activado.")
+print("✅ Silent Aim v4.4 cargado: Conectado exclusivamente a Tool.Activated (Anti-disparos fantasmas).")
