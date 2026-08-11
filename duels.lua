@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Silent Aim Real (Bajo Demanda) + ESP + UI
+-- SCRIPT INTEGRADO: Silent Aim Real v4.0 (PistolFire + WeaponDamage)
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -16,6 +16,7 @@ local CONFIG = {
     AimPart = "Head",
     FOV = 180,
     CheckDistance = 300,
+    DamageAmount = 100,      -- Daño suficiente para abatir según la lógica del juego
     
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
@@ -60,7 +61,6 @@ local function getClosestEnemyWithinFOV()
         if part then
             local dist = (part.Position - cameraPos).Magnitude
             if dist <= CONFIG.CheckDistance then
-                -- Validar FOV
                 local toTarget = (part.Position - cameraPos).Unit
                 local angleDeg = math.deg(math.acos(math.clamp(camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
                 if angleDeg <= CONFIG.FOV then
@@ -76,20 +76,11 @@ local function getClosestEnemyWithinFOV()
 end
 
 -- ============================================
--- 2) INTERCEPTOR DE DISPARO (SILENT AIM REAL)
+-- 2) SILENT AIM INTELIGENTE (CON REMOTES REALES)
 -- ============================================
--- Esta función busca el RemoteEvent de disparo del juego de forma dinámica
-local function getFireRemote()
-    local eventsFolder = replicatedStorage:FindFirstChild("DuelEvents")
-    if eventsFolder then
-        return eventsFolder:FindFirstChild("PistolFire")
-    end
-    return nil
-end
-
--- Hook o detección cuando el jugador intenta disparar con su arma equipada manualmente
 local isActive = false
 local lastFired = 0
+local COOLDOWN_TIME = 0.5 -- Cooldown estricto para evitar spam y respetar el arma
 
 local function trySilentShoot()
     if not isActive then return end
@@ -97,37 +88,49 @@ local function trySilentShoot()
     local myChar = player.Character
     if not myChar then return end
     
-    -- Verificamos si el usuario tiene una herramienta ACTIVAMENTE equipada en la mano
+    -- Validar que tengas un arma en la mano (Tool equipada)
     local tool = myChar:FindFirstChildOfClass("Tool")
-    if not tool then return end -- Si no tiene nada en la mano, no hace nada (CERO auto-equipar)
+    if not tool then return end
+    
+    -- Control de Cooldown estricto
+    if tick() - lastFired < COOLDOWN_TIME then return end
     
     local target = getClosestEnemyWithinFOV()
     if not target or not target.Character then return end
     
     local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
-    if not targetPart then return end
+    local targetHumanoid = target.Character:FindFirstChild("Humanoid")
+    if not targetPart or not targetHumanoid then return end
     
-    local fireRemote = getFireRemote()
-    if not fireRemote then return end
+    local duelEvents = replicatedStorage:FindFirstChild("DuelEvents")
+    if not duelEvents then return end
     
+    local pistolFireRemote = duelEvents:FindFirstChild("PistolFire")
+    local weaponDamageRemote = replicatedStorage:FindFirstChild("WeaponDamage")
+    
+    if not pistolFireRemote then return end
+    
+    lastFired = tick()
+    
+    -- Origen desde la herramienta o cabeza, destino hacia la cabeza del enemigo en pantalla
     local originPos = tool:FindFirstChild("Handle") and tool.Handle.Position or myChar.Head.Position
     local targetPos = targetPart.Position
     
-    -- Cooldown interno breve para evitar spam accidental al hacer click
-    if tick() - lastFired < 0.2 then return end
-    lastFired = tick()
-    
-    -- Disparamos de manera silenciosa hacia el enemigo cuando el usuario hizo click
     pcall(function()
-        fireRemote:FireServer(originPos, targetPos)
+        -- 1. Ejecutamos el disparo visual con los vectores exactos descubiertos
+        pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
+        
+        -- 2. Aplicamos el daño real directo al Humanoid del enemigo capturado
+        if weaponDamageRemote then
+            weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount)
+        end
     end)
 end
 
--- Detectar el click del mouse (PC) o toque en pantalla (Móvil) cuando el usuario decide disparar
+-- Detectar clics o toques para activar el Silent Aim bajo demanda del usuario
 userInputService.InputBegan:Connect(function(input, gameProcessed)
     if not isActive then return end
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        -- Solo actúa si el usuario presiona para disparar
         trySilentShoot()
     end
 end)
@@ -288,7 +291,7 @@ subtitleLabel.BackgroundTransparency = 1
 subtitleLabel.Position = UDim2.new(0, 26, 0, 26)
 subtitleLabel.Size = UDim2.new(1, -70, 0, 16)
 subtitleLabel.Font = FONT
-subtitleLabel.Text = "Silent Aim Real v3.0"
+subtitleLabel.Text = "Silent Aim Real v4.0"
 subtitleLabel.TextColor3 = Theme.TextSecondary
 subtitleLabel.TextSize = 12
 subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -408,7 +411,7 @@ do
     label.Position = UDim2.new(0, 14, 0, 0)
     label.Size = UDim2.new(1, -110, 1, 0)
     label.Font = FONT
-    label.Text = "Silent Aim"
+    label.Text = "Silent Aim Real"
     label.TextColor3 = Theme.TextPrimary
     label.TextSize = 14
     label.TextXAlignment = Enum.TextXAlignment.Left
@@ -535,4 +538,4 @@ do
     end)
 end
 
-print("✅ Silent Aim Verdadero configurado: Solo actúa cuando tú haces click y tienes el arma en mano.")
+print("✅ Silent Aim v4.0 cargado correctamente respetando WeaponDamage y PistolFire.")
