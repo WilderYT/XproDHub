@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Aimbot + ESP Dinámico + ModernGUI (Actualizado)
+-- SCRIPT INTEGRADO: Silent Aim + ESP Dinámico + ModernGUI
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -14,12 +14,11 @@ local TweenService = game:GetService("TweenService")
 local CONFIG = {
     TargetMode = "closest",  -- "closest" | "team" | "all"
     AimPart = "Head",
-    FOV = 150,
-    CheckDistance = 200,
+    FOV = 180,               -- Rango amplio para el Silent Aim
+    CheckDistance = 300,
     
-    Smoothness = 0.25,
     AutoShoot = true,
-    ShootCooldown = 0.6, -- Ajustado para evitar efecto ametralladora y saturación
+    ShootCooldown = 1.2,     -- Cooldown aumentado para evitar efecto ametralladora
     
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
@@ -81,28 +80,9 @@ local function getTargetPosition(target)
 end
 
 -- ============================================
--- 2) AIMBOT (CÁMARA SUAVIZADA)
+-- 2) SISTEMA DE SILENT AIM Y DISPARO LIMPIO
 -- ============================================
-local function setCameraLookAt(targetPos, smooth)
-    if not targetPos then return false end
-    local currentCFrame = camera.CFrame
-    local targetCFrame = CFrame.lookAt(camera.CFrame.Position, targetPos)
-    if smooth and smooth > 0 then
-        camera.CFrame = currentCFrame:Lerp(targetCFrame, math.min(smooth, 1))
-    else
-        camera.CFrame = targetCFrame
-    end
-    return true
-end
-
--- ============================================
--- 3) SISTEMA DE DISPARO REAL (ESTABLE Y SEGURO)
--- ============================================
-local duelEvents = replicatedStorage:FindFirstChild("DuelEvents")
-local pistolFireRemote = duelEvents and duelEvents:FindFirstChild("PistolFire")
-
-local function performShoot(target)
-    -- Validación segura con FindFirstChild para evitar errores si los elementos aún no cargan
+local function performSilentShoot(target)
     local eventsFolder = replicatedStorage:FindFirstChild("DuelEvents")
     local fireRemote = eventsFolder and eventsFolder:FindFirstChild("PistolFire")
     
@@ -135,12 +115,7 @@ local function performShoot(target)
     local targetPos = targetPart and targetPart.Position
     if not originPos or not targetPos then return false end
     
-    if tool then
-        pcall(function()
-            tool:Activate()
-        end)
-    end
-    
+    -- Disparamos directamente al RemoteEvent sin alterar la cámara (Silent Aim puro)
     pcall(function()
         fireRemote:FireServer(originPos, targetPos)
     end)
@@ -149,7 +124,7 @@ local function performShoot(target)
 end
 
 -- ============================================
--- 4) ESP (HIGHLIGHT NATIVO)
+-- 3) ESP (HIGHLIGHT NATIVO)
 -- ============================================
 local espHighlights = {}
 
@@ -192,9 +167,9 @@ local function updateESP()
 end
 
 -- ============================================
--- 5) BUCLE PRINCIPAL
+-- 4) BUCLE PRINCIPAL (SILENT AIM ACTIVO)
 -- ============================================
-local isActive = false -- Inicia desactivado para controlarse desde la UI
+local isActive = false 
 local lastShootTime = 0
 local currentTarget = nil
 
@@ -212,6 +187,7 @@ runService.RenderStepped:Connect(function()
     local distance = (targetPos - camera.CFrame.Position).Magnitude
     if distance > CONFIG.CheckDistance then return end
     
+    -- Validar FOV basado en la dirección de la cámara actual
     local camLook = camera.CFrame.LookVector
     local toTarget = (targetPos - camera.CFrame.Position).Unit
     local angle = math.acos(math.clamp(camLook:Dot(toTarget), -1, 1))
@@ -219,12 +195,11 @@ runService.RenderStepped:Connect(function()
     
     if angleDeg > CONFIG.FOV then return end
     
-    setCameraLookAt(targetPos, CONFIG.Smoothness)
-    
     if CONFIG.AutoShoot then
         local now = tick()
+        -- Controlamos el tiempo entre disparos para que no parezca metralleta
         if now - lastShootTime >= CONFIG.ShootCooldown then
-            if performShoot(currentTarget) then
+            if performSilentShoot(currentTarget) then
                 lastShootTime = now
             end
         end
@@ -232,7 +207,7 @@ runService.RenderStepped:Connect(function()
 end)
 
 -- ============================================
--- 6) CREACIÓN E INTEGRACIÓN DE LA INTERFAZ (UI)
+-- 5) CREACIÓN E INTEGRACIÓN DE LA INTERFAZ (UI)
 -- ============================================
 local Theme = {
     Background   = Color3.fromRGB(15, 15, 20),
@@ -282,9 +257,8 @@ local function tween(inst, props, duration, style)
     return t
 end
 
--- Construcción de la Interfaz Estilo ModernGUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "BrawlEmpireUI"
+screenGui.Name = "BrawlEmpireSilentUI"
 screenGui.ResetOnSpawn = false
 screenGui.IgnoreGuiInset = true
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
@@ -312,15 +286,6 @@ header.BackgroundTransparency = 0.05
 header.BorderSizePixel = 0
 header.Parent = main
 corner(header, 14)
-
-local headerMask = Instance.new("Frame")
-headerMask.Size = UDim2.new(1, 0, 0, 14)
-headerMask.Position = UDim2.new(0, 0, 1, -14)
-headerMask.BackgroundColor3 = Theme.Panel
-headerMask.BackgroundTransparency = 0.05
-headerMask.BorderSizePixel = 0
-headerMask.ZIndex = 0
-headerMask.Parent = header
 
 local accentBar = Instance.new("Frame")
 accentBar.Name = "AccentBar"
@@ -350,7 +315,7 @@ subtitleLabel.BackgroundTransparency = 1
 subtitleLabel.Position = UDim2.new(0, 26, 0, 26)
 subtitleLabel.Size = UDim2.new(1, -70, 0, 16)
 subtitleLabel.Font = FONT
-subtitleLabel.Text = "Aimbot + ESP v2.0"
+subtitleLabel.Text = "Silent Aim v2.0"
 subtitleLabel.TextColor3 = Theme.TextSecondary
 subtitleLabel.TextSize = 12
 subtitleLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -370,7 +335,6 @@ closeBtn.Parent = header
 corner(closeBtn, 8)
 stroke(closeBtn, Theme.Stroke, 1, 0.5)
 
--- Botón flotante para reabrir la GUI si se cierra
 local openBtn = Instance.new("TextButton")
 openBtn.Name = "OpenButton"
 openBtn.Size = UDim2.fromOffset(45, 45)
@@ -393,7 +357,6 @@ openBtn.MouseButton1Click:Connect(function()
     openBtn.Visible = false
 end)
 
--- Arrastrar ventana principal
 local dragging, dragStart, startPos = false, nil, nil
 header.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -413,7 +376,6 @@ userInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Contenedor scroller de opciones
 local content = Instance.new("ScrollingFrame")
 content.Name = "Content"
 content.Position = UDim2.new(0, 12, 0, 62)
@@ -462,13 +424,9 @@ local function addSection(text)
     lbl.Parent = content
 end
 
--- ============================================
--- 7) CONEXIÓN DE CONTROLES A LA UI
--- ============================================
-
 addSection("Combate")
 
--- Toggle Aimbot
+-- Toggle Silent Aim
 do
     local state = isActive
     local row = newRow(44)
@@ -477,7 +435,7 @@ do
     label.Position = UDim2.new(0, 14, 0, 0)
     label.Size = UDim2.new(1, -110, 1, 0)
     label.Font = FONT
-    label.Text = "Aimbot"
+    label.Text = "Silent Aim"
     label.TextColor3 = Theme.TextPrimary
     label.TextSize = 14
     label.TextXAlignment = Enum.TextXAlignment.Left
@@ -604,94 +562,4 @@ do
     end)
 end
 
-addSection("Configuración")
-
--- Selector de Modos de Objetivo
-do
-    local options = {"closest", "team", "all"}
-    local displayNames = {"Más Cercano", "Solo Enemigos", "Todos"}
-    local selectedIndex = 1
-    local open = false
-
-    local row = newRow(44)
-    row.ClipsDescendants = false
-
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 14, 0, 0)
-    label.Size = UDim2.new(0.45, -14, 1, 0)
-    label.Font = FONT
-    label.Text = "Modo de Blanco"
-    label.TextColor3 = Theme.TextPrimary
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = row
-
-    local dropdownBtn = Instance.new("TextButton")
-    dropdownBtn.Size = UDim2.new(0.55, -14, 0, 30)
-    dropdownBtn.Position = UDim2.new(0.45, 0, 0.5, -15)
-    dropdownBtn.BackgroundColor3 = Theme.PanelAlt
-    dropdownBtn.AutoButtonColor = false
-    dropdownBtn.Font = FONT
-    dropdownBtn.Text = displayNames[selectedIndex] .. "  ▾"
-    dropdownBtn.TextColor3 = Theme.AccentBlue
-    dropdownBtn.TextSize = 12
-    dropdownBtn.Parent = row
-    corner(dropdownBtn, 8)
-    stroke(dropdownBtn, Theme.Stroke, 1, 0.4)
-
-    local list = Instance.new("Frame")
-    list.Name = "OptionsList"
-    list.Position = UDim2.new(0, 0, 1, 6)
-    list.Size = UDim2.new(1, 0, 0, #options * 32 + 8)
-    list.BackgroundColor3 = Theme.PanelAlt
-    list.BorderSizePixel = 0
-    list.Visible = false
-    list.ZIndex = 10
-    list.Parent = row
-    corner(list, 8)
-    stroke(list, Theme.Stroke, 1, 0.3)
-
-    local listLayout = Instance.new("UIListLayout")
-    listLayout.Padding = UDim.new(0, 2)
-    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Parent = list
-    
-    local listPad = Instance.new("UIPadding")
-    listPad.PaddingTop = UDim.new(0, 4)
-    listPad.PaddingBottom = UDim.new(0, 4)
-    listPad.PaddingLeft = UDim.new(0, 4)
-    listPad.PaddingRight = UDim.new(0, 4)
-    listPad.Parent = list
-
-    for i, optValue in ipairs(options) do
-        local optBtn = Instance.new("TextButton")
-        optBtn.Size = UDim2.new(1, 0, 0, 28)
-        optBtn.BackgroundColor3 = Theme.Panel
-        optBtn.BackgroundTransparency = 0.2
-        optBtn.AutoButtonColor = false
-        optBtn.Font = FONT
-        optBtn.Text = displayNames[i]
-        optBtn.TextColor3 = Theme.TextPrimary
-        optBtn.TextSize = 12
-        optBtn.ZIndex = 11
-        optBtn.LayoutOrder = i
-        optBtn.Parent = list
-        corner(optBtn, 6)
-
-        optBtn.MouseButton1Click:Connect(function()
-            selectedIndex = i
-            dropdownBtn.Text = displayNames[i] .. "  ▾"
-            list.Visible = false
-            open = false
-            CONFIG.TargetMode = optValue
-        end)
-    end
-
-    dropdownBtn.MouseButton1Click:Connect(function()
-        open = not open
-        list.Visible = open
-    end)
-end
-
-print("✅ Script integrado con UI moderna y sistema de disparo real actualizado con éxito.")
+print("✅ Silent Aim configurado correctamente sin ráfaga visual ni movimiento de cámara.")
