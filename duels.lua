@@ -1,9 +1,8 @@
 -- ============================================
--- SCRIPT INTEGRADO: Brawl Empire (Estilo Rayfield)
--- Créditos: Smith | Con selector de Idioma
+-- SCRIPT INTEGRATED: Brawl Empire (Rayfield Hub)
+-- Credits: Smith | Language: English
 -- ============================================
 
--- Verificar si estamos en Roblox
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local player = game.Players.LocalPlayer
@@ -12,79 +11,18 @@ local replicatedStorage = game:GetService("ReplicatedStorage")
 local runService = game:GetService("RunService")
 local userInputService = game:GetService("UserInputService")
 
--- ============================================
--- 1) CONFIGURACIÓN Y SISTEMA DE IDIOMAS
--- ============================================
-local CURRENT_LANG = "Spanish" -- Idioma por defecto ("Spanish" o "English")
-
-local Texts = {
-    Spanish = {
-        WindowTitle = "Brawl Empire | Hub Profesional",
-        LoadingTitle = "Cargando Brawl Empire...",
-        LoadingSubtitle = "por Smith",
-        TabMain = "Funciones Principales",
-        TabConfig = "Configuración",
-        SecCombat = "Combate",
-        ToggleSilent = "Silent Aim Real",
-        ToggleWall = "Anti-Paredes (Raycast)",
-        SecFarm = "Farming",
-        ToggleFarm = "Auto Farm Coins",
-        SecVisual = "Visuales",
-        ToggleESP = "ESP Jugadores (Highlight)",
-        SecAimSettings = "Ajustes de AimBot",
-        DropTarget = "Modo de Objetivo",
-        SliderFOV = "Campo de Visión (FOV)",
-        SliderDist = "Distancia de chequeo",
-        LangName = "Idioma / Language",
-        MsgLoaded = "Script Cargado Exitosamente!",
-        MsgLoadedContent = "Brawl Empire | Hub está listo para usarse (por Smith).",
-        MsgSilentOn = "Activado",
-        MsgSilentOff = "Desactivado",
-        MsgFarmOn = "Recolectando Monedas",
-        MsgFarmOff = "Detenido"
-    },
-    English = {
-        WindowTitle = "Brawl Empire | Professional Hub",
-        LoadingTitle = "Loading Brawl Empire...",
-        LoadingSubtitle = "by Smith",
-        TabMain = "Main Features",
-        TabConfig = "Settings",
-        SecCombat = "Combat",
-        ToggleSilent = "Real Silent Aim",
-        ToggleWall = "WallCheck (Raycast)",
-        SecFarm = "Farming",
-        ToggleFarm = "Auto Farm Coins",
-        SecVisual = "Visuals",
-        ToggleESP = "Player ESP (Highlight)",
-        SecAimSettings = "AimBot Settings",
-        DropTarget = "Target Mode",
-        SliderFOV = "Field of View (FOV)",
-        SliderDist = "Check Distance",
-        LangName = "Language / Idioma",
-        MsgLoaded = "Script Loaded Successfully!",
-        MsgLoadedContent = "Brawl Empire | Hub is ready to use (by Smith).",
-        MsgSilentOn = "Activated",
-        MsgSilentOff = "Deactivated",
-        MsgFarmOn = "Collecting Coins",
-        MsgFarmOff = "Stopped"
-    }
-}
-
-local function T(key)
-    return Texts[CURRENT_LANG][key] or key
-end
-
 local CONFIG = {
     TargetMode = "closest",
     AimPart = "Head",
     FOV = 180,
     CheckDistance = 300,
     DamageAmount = 100,
-    WallCheck = true,
+    WallCheck = true, -- Integrated directly into Silent Aim
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
     FarmDistance = 600,
-    FarmCooldown = 0.25
+    FarmCooldown = 0.25,
+    AutoStreakEnabled = false
 }
 
 local isSilentAimActive = false
@@ -93,7 +31,7 @@ local lastFired = 0
 local COOLDOWN_TIME = 0.35
 
 -- ============================================
--- 2) LÓGICA DE FUNCIONES
+-- 1) CORE FUNCTIONS
 -- ============================================
 
 local function getEnemies()
@@ -209,6 +147,7 @@ local function getCoins()
     return coins
 end
 
+-- Auto Farm Coins Loop
 task.spawn(function()
     while task.wait(CONFIG.FarmCooldown) do
         if isAutoFarmActive then
@@ -220,6 +159,28 @@ task.spawn(function()
                         local distancia = (coin.Position - rootPart.Position).Magnitude
                         if distancia < CONFIG.FarmDistance and distancia > 2 then
                             coin.CFrame = rootPart.CFrame - Vector3.new(0, 2, 0)
+                        end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Auto Win / Streak Logic (Simulates finishing objectives/defeating remaining enemies quickly to farm match wins)
+task.spawn(function()
+    while task.wait(2) do
+        if CONFIG.AutoStreakEnabled then
+            pcall(function()
+                -- Automatically targets and clears remaining enemies to secure round wins rapidly
+                for _, enemy in ipairs(getEnemies()) do
+                    if enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
+                        local hum = enemy.Character.Humanoid
+                        local root = enemy.Character:FindFirstChild("HumanoidRootPart")
+                        local weaponDamageRemote = replicatedStorage:FindFirstChild("WeaponDamage")
+                        if hum and hum.Health > 0 and root and weaponDamageRemote then
+                            -- Instantly applies finishing damage to secure the match win loop
+                            weaponDamageRemote:FireServer(hum, 500)
                         end
                     end
                 end
@@ -262,15 +223,15 @@ end
 runService.RenderStepped:Connect(updateESP)
 
 -- ============================================
--- 3) INTERFAZ GRÁFICA (RAYFIELD) CON SMITH Y IDIOMA
+-- 2) RAYFIELD UI (ENGLISH)
 -- ============================================
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = T("WindowTitle"),
-   LoadingTitle = T("LoadingTitle"),
-   LoadingSubtitle = T("LoadingSubtitle"),
+   Name = "Brawl Empire | Professional Hub",
+   LoadingTitle = "Loading Brawl Empire...",
+   LoadingSubtitle = "by Smith",
    ConfigurationSaving = {
       Enabled = false,
       FolderName = "BrawlEmpireConfig",
@@ -279,24 +240,24 @@ local Window = Rayfield:CreateWindow({
    KeySystem = false,
 })
 
--- Pestaña Principal
-local TabPrincipal = Window:CreateTab(T("TabMain"), "target")
+-- Main Tab
+local TabMain = Window:CreateTab("Main", "target")
 
-local SectionCombat = TabPrincipal:CreateSection(T("SecCombat"))
+local SectionCombat = TabMain:CreateSection("Combat")
 
-local ToggleSilent = TabPrincipal:CreateToggle({
-   Name = T("ToggleSilent"),
+local ToggleSilent = TabMain:CreateToggle({
+   Name = "Silent Aim (Includes WallCheck)",
    CurrentValue = isSilentAimActive,
    Flag = "SilentAimFlag",
    Callback = function(Value)
       isSilentAimActive = Value
-      local msg = Value and T("MsgSilentOn") or T("MsgSilentOff")
+      local msg = Value and "Activated" or "Deactivated"
       Rayfield:Notify({Title = "Silent Aim", Content = msg, Duration = 3})
    end,
 })
 
-local ToggleWall = TabPrincipal:CreateToggle({
-   Name = T("ToggleWall"),
+local ToggleWall = TabMain:CreateToggle({
+   Name = "Bypass Walls (Raycast)",
    CurrentValue = CONFIG.WallCheck,
    Flag = "WallCheckFlag",
    Callback = function(Value)
@@ -304,23 +265,34 @@ local ToggleWall = TabPrincipal:CreateToggle({
    end,
 })
 
-local SectionFarm = TabPrincipal:CreateSection(T("SecFarm"))
+local SectionFarm = TabMain:CreateSection("Farming & Streaks")
 
-local ToggleFarm = TabPrincipal:CreateToggle({
-   Name = T("ToggleFarm"),
+local ToggleFarm = TabMain:CreateToggle({
+   Name = "Auto Farm Coins",
    CurrentValue = isAutoFarmActive,
    Flag = "AutoFarmFlag",
    Callback = function(Value)
       isAutoFarmActive = Value
-      local msg = Value and T("MsgFarmOn") or T("MsgFarmOff")
+      local msg = Value and "Collecting Coins" or "Stopped"
       Rayfield:Notify({Title = "Auto Farm", Content = msg, Duration = 3})
    end,
 })
 
-local SectionVisual = TabPrincipal:CreateSection(T("SecVisual"))
+local ToggleStreak = TabMain:CreateToggle({
+   Name = "Auto Win / Farm Streaks",
+   CurrentValue = CONFIG.AutoStreakEnabled,
+   Flag = "AutoStreakFlag",
+   Callback = function(Value)
+      CONFIG.AutoStreakEnabled = Value
+      local msg = Value and "Auto Win Enabled" or "Auto Win Disabled"
+      Rayfield:Notify({Title = "Streak Farm", Content = msg, Duration = 3})
+   end,
+})
 
-local ToggleESP = TabPrincipal:CreateToggle({
-   Name = T("ToggleESP"),
+local SectionVisual = TabMain:CreateSection("Visuals")
+
+local ToggleESP = TabMain:CreateToggle({
+   Name = "Player ESP (Highlight)",
    CurrentValue = CONFIG.ESPEnabled,
    Flag = "ESPFlag",
    Callback = function(Value)
@@ -328,32 +300,13 @@ local ToggleESP = TabPrincipal:CreateToggle({
    end,
 })
 
--- Pestaña Configuración
-local TabConfig = Window:CreateTab(T("TabConfig"), "settings")
+-- Settings Tab
+local TabConfig = Window:CreateTab("Settings", "settings")
 
--- Selector de Idioma
-local SectionLang = TabConfig:CreateSection("Idioma / Language")
-local DropdownLang = TabConfig:CreateDropdown({
-   Name = T("LangName"),
-   Options = {"Spanish", "English"},
-   CurrentOption = {CURRENT_LANG},
-   Flag = "LangFlag",
-   Callback = function(Option)
-      CURRENT_LANG = Option[1]
-      local titleMsg = (CURRENT_LANG == "Spanish") and "Idioma cambiado" or "Language changed"
-      local contentMsg = (CURRENT_LANG == "Spanish") and "Reinicia el script para aplicar todos los textos." or "Restart script to apply all texts."
-      Rayfield:Notify({
-         Title = titleMsg, 
-         Content = contentMsg, 
-         Duration = 4
-      })
-   end,
-})
-
-local SectionAimSettings = TabConfig:CreateSection(T("SecAimSettings"))
+local SectionAimSettings = TabConfig:CreateSection("AimBot Settings")
 
 local DropdownTarget = TabConfig:CreateDropdown({
-   Name = T("DropTarget"),
+   Name = "Target Mode",
    Options = {"closest", "team", "all"},
    CurrentOption = {CONFIG.TargetMode},
    Flag = "TargetModeFlag",
@@ -363,10 +316,10 @@ local DropdownTarget = TabConfig:CreateDropdown({
 })
 
 local SliderFOV = TabConfig:CreateSlider({
-   Name = T("SliderFOV"),
+   Name = "Field of View (FOV)",
    Range = {10, 360},
    Increment = 5,
-   Suffix = "grados",
+   Suffix = "degrees",
    CurrentValue = CONFIG.FOV,
    Flag = "FOVFlag",
    Callback = function(Value)
@@ -375,7 +328,7 @@ local SliderFOV = TabConfig:CreateSlider({
 })
 
 local SliderDist = TabConfig:CreateSlider({
-   Name = T("SliderDist"),
+   Name = "Check Distance",
    Range = {50, 1000},
    Increment = 10,
    Suffix = "studs",
@@ -387,8 +340,8 @@ local SliderDist = TabConfig:CreateSlider({
 })
 
 Rayfield:Notify({
-   Title = T("MsgLoaded"),
-   Content = T("MsgLoadedContent"),
+   Title = "Script Loaded Successfully!",
+   Content = "Brawl Empire | Hub is ready to use (by Smith).",
    Duration = 5,
    Image = "infinity"
 })
