@@ -9,19 +9,19 @@ local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
 local replicatedStorage = game:GetService("ReplicatedStorage")
 local runService = game:GetService("RunService")
-local userInputService = game:GetService("UserInputService")
 
 local CONFIG = {
     TargetMode = "closest",
     AimPart = "Head",
     FOV = 180,
-    CheckDistance = 300,
+    CheckDistance = 500,
     DamageAmount = 100,
-    WallCheck = true, -- Integrado y fijo para el Silent Aim
+    WallCheck = true,
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
     FarmDistance = 600,
-    FarmCooldown = 0.25
+    FarmCooldown = 0.25,
+    AutoWinEnabled = false
 }
 
 local isSilentAimActive = false
@@ -51,7 +51,6 @@ local function getEnemies()
 end
 
 local function isVisible(targetPart)
-    -- El WallCheck ahora trabaja directamente de la mano con el Silent Aim
     if not CONFIG.WallCheck then return true end
     local myChar = player.Character
     if not myChar or not myChar:FindFirstChild("Head") then return false end
@@ -81,7 +80,6 @@ local function getClosestEnemyWithinFOV()
             if dist <= CONFIG.CheckDistance then
                 local toTarget = (part.Position - cameraPos).Unit
                 local angleDeg = math.deg(math.acos(math.clamp(camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
-                -- Se valida el FOV y el WallCheck fusionados
                 if angleDeg <= CONFIG.FOV and isVisible(part) then
                     if dist < closestDist then
                         closestDist = dist
@@ -94,23 +92,50 @@ local function getClosestEnemyWithinFOV()
     return closest
 end
 
+-- Función para asegurar que el arma esté equipada en la mano
+local function equipWeapon()
+    local myChar = player.Character
+    if not myChar then return end
+    local humanoid = myChar:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    -- Si ya tiene una herramienta equipada, retornar
+    if myChar:FindFirstChildOfClass("Tool") then return end
+    
+    -- Buscar en la mochila (Backpack)
+    local backpack = player:FindFirstChildOfClass("Backpack")
+    if backpack then
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") then
+                humanoid:EquipTool(item)
+                break
+            end
+        end
+    end
+end
+
 local function trySilentShoot()
-    if not isSilentAimActive then return end
+    if not isSilentAimActive and not CONFIG.AutoWinEnabled then return end
+    equipWeapon() -- Asegura equipar el arma antes de disparar
+    
     local myChar = player.Character
     if not myChar then return end
     local tool = myChar:FindFirstChildOfClass("Tool")
     if not tool then return end
     if tick() - lastFired < COOLDOWN_TIME then return end
+    
     local target = getClosestEnemyWithinFOV()
     if not target or not target.Character then return end
     local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
     local targetHumanoid = target.Character:FindFirstChild("Humanoid")
     if not targetPart or not targetHumanoid then return end
+    
     local duelEvents = replicatedStorage:FindFirstChild("DuelEvents")
     if not duelEvents then return end
     local pistolFireRemote = duelEvents:FindFirstChild("PistolFire")
     local weaponDamageRemote = replicatedStorage:FindFirstChild("WeaponDamage")
     if not pistolFireRemote then return end
+    
     lastFired = tick()
     local originPos = tool:FindFirstChild("Handle") and tool.Handle.Position or myChar.Head.Position
     local targetPos = targetPart.Position
@@ -123,7 +148,7 @@ local function trySilentShoot()
 
     pcall(function()
         pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
-        if weaponDamageRemote and isVisible(targetPart) then weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount) end
+        if weaponDamageRemote then weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount) end
     end)
 end
 
@@ -161,6 +186,35 @@ task.spawn(function()
                         if distancia < CONFIG.FarmDistance and distancia > 2 then
                             coin.CFrame = rootPart.CFrame - Vector3.new(0, 2, 0)
                         end
+                    end
+                end
+            end)
+        end
+    end
+end)
+
+-- Auto Win / Farm Streaks Loop mejorado con auto-equipar y teletransporte
+task.spawn(function()
+    while task.wait(3) do
+        if CONFIG.AutoWinEnabled then
+            pcall(function()
+                equipWeapon() -- Fuerza que saque el arma de la mochila al iniciar ronda
+                
+                local myChar = player.Character
+                if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+                local rootPart = myChar.HumanoidRootPart
+                
+                local enemies = getEnemies()
+                if #enemies > 0 then
+                    local target = enemies[1]
+                    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                        local targetRoot = target.Character.HumanoidRootPart
+                        
+                        -- Teletransporte directo al rival
+                        rootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
+                        
+                        task.wait(0.15)
+                        trySilentShoot()
                     end
                 end
             end)
@@ -235,7 +289,18 @@ local ToggleSilent = TabMain:CreateToggle({
    end,
 })
 
-local SectionFarm = TabMain:CreateSection("Farming")
+local SectionFarm = TabMain:CreateSection("Farming & Streaks")
+
+local ToggleAutoWin = TabMain:CreateToggle({
+   Name = "Auto Win / Farm Streaks",
+   CurrentValue = CONFIG.AutoWinEnabled,
+   Flag = "AutoWinFlag",
+   Callback = function(Value)
+      CONFIG.AutoWinEnabled = Value
+      local msg = Value and "Auto Win Loop Active" or "Stopped"
+      Rayfield:Notify({Title = "Auto Win", Content = msg, Duration = 3})
+   end,
+})
 
 local ToggleFarm = TabMain:CreateToggle({
    Name = "Auto Farm Coins",
