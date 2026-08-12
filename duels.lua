@@ -184,7 +184,7 @@ local function trySilentShoot()
     end
     pcall(function()
         pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
-        if weaponDamageRemote and isVisible(targetPart) then weaponDamageRemote:FireServer(weaponDamageRemote, targetHumanoid, CONFIG.DamageAmount) end
+        if weaponDamageRemote and isVisible(targetPart) then weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount) end
     end)
 end
 
@@ -290,7 +290,8 @@ local ToggleSilent = TabPrincipal:CreateToggle({
    Flag = "SilentAimFlag",
    Callback = function(Value)
       isSilentAimActive = Value
-      Rayfield:Notify({Title = "Silent Aim", Content = Value and T("MsgSilentOn") or T("MsgSilentOff"), Duration = 3})
+      local msg = Value and T("MsgSilentOn") or T("MsgSilentOff")
+      Rayfield:Notify({Title = "Silent Aim", Content = msg, Duration = 3})
    end,
 })
 
@@ -311,7 +312,8 @@ local ToggleFarm = TabPrincipal:CreateToggle({
    Flag = "AutoFarmFlag",
    Callback = function(Value)
       isAutoFarmActive = Value
-      Rayfield:Notify({Title = "Auto Farm", Content = Value and T("MsgFarmOn") or T("MsgFarmOff"), Duration = 3})
+      local msg = Value and T("MsgFarmOn") or T("MsgFarmOff")
+      Rayfield:Notify({Title = "Auto Farm", Content = msg, Duration = 3})
    end,
 })
 
@@ -334,13 +336,15 @@ local SectionLang = TabConfig:CreateSection("Idioma / Language")
 local DropdownLang = TabConfig:CreateDropdown({
    Name = T("LangName"),
    Options = {"Spanish", "English"},
-   CurrentOption = CURRENT_LANG,
+   CurrentOption = {CURRENT_LANG},
    Flag = "LangFlag",
    Callback = function(Option)
       CURRENT_LANG = Option[1]
+      local titleMsg = (CURRENT_LANG == "Spanish") and "Idioma cambiado" or "Language changed"
+      local contentMsg = (CURRENT_LANG == "Spanish") and "Reinicia el script para aplicar todos los textos." or "Restart script to apply all texts."
       Rayfield:Notify({
-         Title = CURRENT_LANG == "Spanish" ? "Idioma cambiado" : "Language changed", 
-         Content = CURRENT_LANG == "Spanish" ? "Reinicia el script para aplicar todos los textos." : "Restart script to apply all texts.", 
+         Title = titleMsg, 
+         Content = contentMsg, 
          Duration = 4
       })
    end,
@@ -351,7 +355,7 @@ local SectionAimSettings = TabConfig:CreateSection(T("SecAimSettings"))
 local DropdownTarget = TabConfig:CreateDropdown({
    Name = T("DropTarget"),
    Options = {"closest", "team", "all"},
-   CurrentOption = CONFIG.TargetMode,
+   CurrentOption = {CONFIG.TargetMode},
    Flag = "TargetModeFlag",
    Callback = function(Option)
       CONFIG.TargetMode = Option[1]
