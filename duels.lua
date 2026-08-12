@@ -28,6 +28,7 @@ local isSilentAimActive = false
 local isAutoFarmActive = false
 local lastFired = 0
 local COOLDOWN_TIME = 0.35
+local isInterfaceHidden = false
 
 -- ============================================
 -- 1) CORE FUNCTIONS
@@ -92,7 +93,6 @@ local function getClosestEnemyWithinFOV()
     return closest
 end
 
--- Función mejorada para asegurar que el arma esté equipada
 local function equipWeapon()
     local myChar = player.Character
     if not myChar then return end
@@ -117,7 +117,7 @@ local function trySilentShoot()
     equipWeapon()
     
     local myChar = player.Character
-    if not myChar or not myChar:FindFirstChildOfClass("Humanoid") or myChar.Humanoid.Health <= 0 then return end
+    if not myChar or not myChar:FindFirstChild("Humanoid") or myChar.Humanoid.Health <= 0 then return end
     local tool = myChar:FindFirstChildOfClass("Tool")
     if not tool then return end
     if tick() - lastFired < COOLDOWN_TIME then return end
@@ -144,7 +144,6 @@ local function trySilentShoot()
     local result = workspace:Raycast(originPos, (targetPos - originPos), raycastParams)
     if result then targetPos = result.Position end
 
-    -- Sistema de disparo con doble reintento rápido para asegurar impacto tras la ronda
     pcall(function()
         for i = 1, 2 do
             pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
@@ -177,7 +176,6 @@ local function getCoins()
     return coins
 end
 
--- Auto Farm Coins Loop optimizado con validación de vida
 task.spawn(function()
     while task.wait(CONFIG.FarmCooldown) do
         if isAutoFarmActive then
@@ -197,7 +195,6 @@ task.spawn(function()
     end
 end)
 
--- Auto Win / Farm Streaks Loop ultra estable
 task.spawn(function()
     while task.wait(2.5) do
         if CONFIG.AutoWinEnabled then
@@ -215,10 +212,7 @@ task.spawn(function()
                     local target = enemies[1]
                     if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
                         local targetRoot = target.Character.HumanoidRootPart
-                        
-                        -- Teletransporte limpio asegurando que no interfiera con físicas
                         rootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
-                        
                         task.wait(0.1)
                         trySilentShoot()
                     end
@@ -369,9 +363,81 @@ local SliderDist = TabConfig:CreateSlider({
    end,
 })
 
+-- ============================================
+-- 3) HIDE INTERFACE (GETHUI COMPATIBLE HIDER)
+-- ============================================
+
+local SectionUIConfig = TabConfig:CreateSection("Interface Settings")
+
+local ToggleHideUI = TabConfig:CreateToggle({
+   Name = "Hide Interface (Invisible in captures)",
+   CurrentValue = false,
+   Flag = "HideInterfaceFlag",
+   Callback = function(Value)
+      isInterfaceHidden = Value
+   end,
+})
+
+-- Función para rastrear todas las ubicaciones posibles donde los ejecutores guardan la UI
+local function getUIContainers()
+    local containers = {}
+    if gethui then
+        pcall(function() table.insert(containers, gethui()) end)
+    end
+    pcall(function() table.insert(containers, game:GetService("CoreGui")) end)
+    if player:FindFirstChild("PlayerGui") then
+        pcall(function() table.insert(containers, player.PlayerGui) end)
+    end
+    return containers
+end
+
+-- Bucle de renderizado continuo para aplicar transparencia al botón flotante "Show Rayfield"
+runService.RenderStepped:Connect(function()
+    pcall(function()
+        local transparencyVal = isInterfaceHidden and 1 or 0
+        local containers = getUIContainers()
+        
+        for _, container in ipairs(containers) do
+            for _, descendant in ipairs(container:GetDescendants()) do
+                if (descendant:IsA("TextLabel") or descendant:IsA("TextButton")) and descendant.Text:find("Rayfield") then
+                    -- Detectar explícitamente el elemento que contiene "Show Rayfield"
+                    if descendant.Text:find("Show") or descendant.Name:lower():find("open") or (descendant.Parent and descendant.Parent.Name:lower():find("open")) then
+                        descendant.TextTransparency = transparencyVal
+                        descendant.BackgroundTransparency = transparencyVal
+                        
+                        -- Aplicar transparencia recursiva al contenedor principal y a sus bordes/efectos
+                        local parentFrame = descendant.Parent
+                        if parentFrame and parentFrame:IsA("GuiObject") then
+                            parentFrame.BackgroundTransparency = transparencyVal
+                            if parentFrame:IsA("CanvasGroup") then
+                                parentFrame.GroupTransparency = transparencyVal
+                            end
+                            
+                            for _, child in ipairs(parentFrame:GetDescendants()) do
+                                if child:IsA("GuiObject") then
+                                    child.BackgroundTransparency = transparencyVal
+                                    if child:IsA("TextLabel") or child:IsA("TextButton") then
+                                        child.TextTransparency = transparencyVal
+                                    elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+                                        child.ImageTransparency = transparencyVal
+                                    elseif child:IsA("UIStroke") then
+                                        child.Transparency = transparencyVal
+                                    elseif child:IsA("CanvasGroup") then
+                                        child.GroupTransparency = transparencyVal
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end)
+
 Rayfield:Notify({
    Title = "Script Optimized Successfully!",
-   Content = "Brawl Empire | Hub updated with anti-error checks.",
+   Content = "Brawl Empire | Hub updated with mobile gethui UI hider.",
    Duration = 5,
    Image = "infinity"
 })
