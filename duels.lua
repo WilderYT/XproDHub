@@ -92,17 +92,15 @@ local function getClosestEnemyWithinFOV()
     return closest
 end
 
--- Función para asegurar que el arma esté equipada en la mano
+-- Función mejorada para asegurar que el arma esté equipada
 local function equipWeapon()
     local myChar = player.Character
     if not myChar then return end
     local humanoid = myChar:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
+    if not humanoid or humanoid.Health <= 0 then return end
     
-    -- Si ya tiene una herramienta equipada, retornar
     if myChar:FindFirstChildOfClass("Tool") then return end
     
-    -- Buscar en la mochila (Backpack)
     local backpack = player:FindFirstChildOfClass("Backpack")
     if backpack then
         for _, item in ipairs(backpack:GetChildren()) do
@@ -116,10 +114,10 @@ end
 
 local function trySilentShoot()
     if not isSilentAimActive and not CONFIG.AutoWinEnabled then return end
-    equipWeapon() -- Asegura equipar el arma antes de disparar
+    equipWeapon()
     
     local myChar = player.Character
-    if not myChar then return end
+    if not myChar or not myChar:FindFirstChildOfClass("Humanoid") or myChar.Humanoid.Health <= 0 then return end
     local tool = myChar:FindFirstChildOfClass("Tool")
     if not tool then return end
     if tick() - lastFired < COOLDOWN_TIME then return end
@@ -128,7 +126,7 @@ local function trySilentShoot()
     if not target or not target.Character then return end
     local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
     local targetHumanoid = target.Character:FindFirstChild("Humanoid")
-    if not targetPart or not targetHumanoid then return end
+    if not targetPart or not targetHumanoid or targetHumanoid.Health <= 0 then return end
     
     local duelEvents = replicatedStorage:FindFirstChild("DuelEvents")
     if not duelEvents then return end
@@ -146,9 +144,15 @@ local function trySilentShoot()
     local result = workspace:Raycast(originPos, (targetPos - originPos), raycastParams)
     if result then targetPos = result.Position end
 
+    -- Sistema de disparo con doble reintento rápido para asegurar impacto tras la ronda
     pcall(function()
-        pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
-        if weaponDamageRemote then weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount) end
+        for i = 1, 2 do
+            pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
+            if weaponDamageRemote then 
+                weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount) 
+            end
+            task.wait(0.05)
+        end
     end)
 end
 
@@ -173,13 +177,13 @@ local function getCoins()
     return coins
 end
 
--- Auto Farm Coins Loop
+-- Auto Farm Coins Loop optimizado con validación de vida
 task.spawn(function()
     while task.wait(CONFIG.FarmCooldown) do
         if isAutoFarmActive then
             pcall(function()
                 local myChar = player.Character
-                if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                if myChar and myChar:FindFirstChild("HumanoidRootPart") and myChar:FindFirstChildOfClass("Humanoid") and myChar.Humanoid.Health > 0 then
                     local rootPart = myChar.HumanoidRootPart
                     for _, coin in ipairs(getCoins()) do
                         local distancia = (coin.Position - rootPart.Position).Magnitude
@@ -193,27 +197,29 @@ task.spawn(function()
     end
 end)
 
--- Auto Win / Farm Streaks Loop mejorado con auto-equipar y teletransporte
+-- Auto Win / Farm Streaks Loop ultra estable
 task.spawn(function()
-    while task.wait(3) do
+    while task.wait(2.5) do
         if CONFIG.AutoWinEnabled then
             pcall(function()
-                equipWeapon() -- Fuerza que saque el arma de la mochila al iniciar ronda
+                equipWeapon()
                 
                 local myChar = player.Character
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-                local rootPart = myChar.HumanoidRootPart
+                local humanoid = myChar:FindFirstChildOfClass("Humanoid")
+                if not humanoid or humanoid.Health <= 0 then return end
                 
+                local rootPart = myChar.HumanoidRootPart
                 local enemies = getEnemies()
                 if #enemies > 0 then
                     local target = enemies[1]
                     if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
                         local targetRoot = target.Character.HumanoidRootPart
                         
-                        -- Teletransporte directo al rival
+                        -- Teletransporte limpio asegurando que no interfiera con físicas
                         rootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
                         
-                        task.wait(0.15)
+                        task.wait(0.1)
                         trySilentShoot()
                     end
                 end
@@ -364,8 +370,8 @@ local SliderDist = TabConfig:CreateSlider({
 })
 
 Rayfield:Notify({
-   Title = "Script Loaded Successfully!",
-   Content = "Brawl Empire | Hub is ready to use (by Smith).",
+   Title = "Script Optimized Successfully!",
+   Content = "Brawl Empire | Hub updated with anti-error checks.",
    Duration = 5,
    Image = "infinity"
 })
