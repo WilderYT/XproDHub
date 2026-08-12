@@ -117,7 +117,7 @@ local function trySilentShoot()
     equipWeapon()
     
     local myChar = player.Character
-    if not myChar or not myChar:FindFirstChild("Humanoid") or myChar.Humanoid.Health <= 0 then return end
+    if not myChar or not myChar:FindFirstChildOfClass("Humanoid") or myChar.Humanoid.Health <= 0 then return end
     local tool = myChar:FindFirstChildOfClass("Tool")
     if not tool then return end
     if tick() - lastFired < COOLDOWN_TIME then return end
@@ -256,10 +256,10 @@ end
 runService.RenderStepped:Connect(updateESP)
 
 -- ============================================
--- 2) RAYFIELD UI (ENGLISH)
+-- 2) RAYFIELD UI
 -- ============================================
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/SiriusSoftwareLTD/Rayfield/main/source.lua'))()
 
 local Window = Rayfield:CreateWindow({
    Name = "Brawl Empire | Professional Hub",
@@ -364,66 +364,77 @@ local SliderDist = TabConfig:CreateSlider({
 })
 
 -- ============================================
--- 3) HIDE INTERFACE (GETHUI COMPATIBLE HIDER)
+-- 3) HIDE INTERFACE (EXACT RESTORE LOGIC)
 -- ============================================
 
 local SectionUIConfig = TabConfig:CreateSection("Interface Settings")
 
-local ToggleHideUI = TabConfig:CreateToggle({
-   Name = "Hide Interface (Invisible in captures)",
-   CurrentValue = false,
-   Flag = "HideInterfaceFlag",
-   Callback = function(Value)
-      isInterfaceHidden = Value
-   end,
-})
-
--- Función para rastrear todas las ubicaciones posibles donde los ejecutores guardan la UI
 local function getUIContainers()
     local containers = {}
-    if gethui then
-        pcall(function() table.insert(containers, gethui()) end)
-    end
+    if gethui then pcall(function() table.insert(containers, gethui()) end) end
     pcall(function() table.insert(containers, game:GetService("CoreGui")) end)
-    if player:FindFirstChild("PlayerGui") then
-        pcall(function() table.insert(containers, player.PlayerGui) end)
-    end
+    if player:FindFirstChild("PlayerGui") then pcall(function() table.insert(containers, player.PlayerGui) end) end
     return containers
 end
 
--- Bucle de renderizado continuo para aplicar transparencia al botón flotante "Show Rayfield"
-runService.RenderStepped:Connect(function()
+local ToggleHideUI
+
+local function setShowButtonTransparency(invisible)
     pcall(function()
-        local transparencyVal = isInterfaceHidden and 1 or 0
-        local containers = getUIContainers()
-        
-        for _, container in ipairs(containers) do
-            for _, descendant in ipairs(container:GetDescendants()) do
-                if (descendant:IsA("TextLabel") or descendant:IsA("TextButton")) and descendant.Text:find("Rayfield") then
-                    -- Detectar explícitamente el elemento que contiene "Show Rayfield"
-                    if descendant.Text:find("Show") or descendant.Name:lower():find("open") or (descendant.Parent and descendant.Parent.Name:lower():find("open")) then
-                        descendant.TextTransparency = transparencyVal
-                        descendant.BackgroundTransparency = transparencyVal
+        for _, container in ipairs(getUIContainers()) do
+            for _, desc in ipairs(container:GetDescendants()) do
+                if (desc:IsA("TextLabel") or desc:IsA("TextButton")) and desc.Text == "Show Rayfield" then
+                    local buttonObj = desc:IsA("TextButton") and desc or desc:FindFirstAncestorOfClass("TextButton") or desc.Parent
+                    if buttonObj then
+                        local targets = {buttonObj}
+                        for _, child in ipairs(buttonObj:GetDescendants()) do
+                            table.insert(targets, child)
+                        end
                         
-                        -- Aplicar transparencia recursiva al contenedor principal y a sus bordes/efectos
-                        local parentFrame = descendant.Parent
-                        if parentFrame and parentFrame:IsA("GuiObject") then
-                            parentFrame.BackgroundTransparency = transparencyVal
-                            if parentFrame:IsA("CanvasGroup") then
-                                parentFrame.GroupTransparency = transparencyVal
-                            end
-                            
-                            for _, child in ipairs(parentFrame:GetDescendants()) do
-                                if child:IsA("GuiObject") then
-                                    child.BackgroundTransparency = transparencyVal
-                                    if child:IsA("TextLabel") or child:IsA("TextButton") then
-                                        child.TextTransparency = transparencyVal
-                                    elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
-                                        child.ImageTransparency = transparencyVal
-                                    elseif child:IsA("UIStroke") then
-                                        child.Transparency = transparencyVal
-                                    elseif child:IsA("CanvasGroup") then
-                                        child.GroupTransparency = transparencyVal
+                        for _, elem in ipairs(targets) do
+                            if invisible then
+                                -- Guardar transparencias originales la primera vez antes de ocultar
+                                if not elem:GetAttribute("SavedTransp") then
+                                    elem:SetAttribute("SavedTransp", true)
+                                    if elem:IsA("GuiObject") then
+                                        elem:SetAttribute("OrigBgTrans", elem.BackgroundTransparency)
+                                    end
+                                    if elem:IsA("TextLabel") or elem:IsA("TextButton") then
+                                        elem:SetAttribute("OrigTextTrans", elem.TextTransparency)
+                                    end
+                                    if elem:IsA("ImageLabel") or elem:IsA("ImageButton") then
+                                        elem:SetAttribute("OrigImgTrans", elem.ImageTransparency)
+                                    end
+                                    if elem:IsA("UIStroke") then
+                                        elem:SetAttribute("OrigStrokeTrans", elem.Transparency)
+                                    end
+                                end
+                                
+                                -- Aplicar transparencia total (invisible)
+                                if elem:IsA("TextLabel") or elem:IsA("TextButton") then
+                                    elem.TextTransparency = 1
+                                elseif elem:IsA("ImageLabel") or elem:IsA("ImageButton") then
+                                    elem.ImageTransparency = 1
+                                elseif elem:IsA("UIStroke") then
+                                    elem.Transparency = 1
+                                end
+                                if elem:IsA("GuiObject") then
+                                    elem.BackgroundTransparency = 1
+                                end
+                            else
+                                -- Restaurar exactos los valores originales de Rayfield
+                                if elem:GetAttribute("SavedTransp") then
+                                    if elem:IsA("TextLabel") or elem:IsA("TextButton") then
+                                        elem.TextTransparency = elem:GetAttribute("OrigTextTrans") or 0
+                                    end
+                                    if elem:IsA("ImageLabel") or elem:IsA("ImageButton") then
+                                        elem.ImageTransparency = elem:GetAttribute("OrigImgTrans") or 0
+                                    end
+                                    if elem:IsA("UIStroke") then
+                                        elem.Transparency = elem:GetAttribute("OrigStrokeTrans") or 0
+                                    end
+                                    if elem:IsA("GuiObject") then
+                                        elem.BackgroundTransparency = elem:GetAttribute("OrigBgTrans") or 0
                                     end
                                 end
                             end
@@ -433,11 +444,27 @@ runService.RenderStepped:Connect(function()
             end
         end
     end)
+end
+
+ToggleHideUI = TabConfig:CreateToggle({
+   Name = "Hide Interface (Invisible Button)",
+   CurrentValue = false,
+   Flag = "HideInterfaceFlag",
+   Callback = function(Value)
+      isInterfaceHidden = Value
+      setShowButtonTransparency(Value)
+   end,
+})
+
+runService.RenderStepped:Connect(function()
+    if isInterfaceHidden then
+        setShowButtonTransparency(true)
+    end
 end)
 
 Rayfield:Notify({
-   Title = "Script Optimized Successfully!",
-   Content = "Brawl Empire | Hub updated with mobile gethui UI hider.",
+   Title = "Script Loaded!",
+   Content = "Brawl Empire | Hub ready.",
    Duration = 5,
    Image = "infinity"
 })
