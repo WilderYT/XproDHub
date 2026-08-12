@@ -493,7 +493,7 @@ local function addSection(text)
     lbl.Parent = content
 end
 
-addSection("Combate Legítimo")
+addSection("Funciones Principales")
 
 -- Toggle Silent Aim
 do
@@ -559,6 +559,74 @@ do
     button.MouseButton1Click:Connect(function()
         state = not state
         isActive = state
+        render(true)
+    end)
+end
+
+-- Toggle Auto Farm Coins
+do
+    local state = isAutoFarmActive
+    local row = newRow(44)
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Position = UDim2.new(0, 14, 0, 0)
+    label.Size = UDim2.new(1, -110, 1, 0)
+    label.Font = FONT
+    label.Text = "Auto Farm Coins"
+    label.TextColor3 = Theme.TextPrimary
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Position = UDim2.new(1, -96, 0, 0)
+    statusLabel.Size = UDim2.new(0, 40, 1, 0)
+    statusLabel.Font = FONT_BOLD
+    statusLabel.TextSize = 11
+    statusLabel.Parent = row
+
+    local track = Instance.new("Frame")
+    track.Size = UDim2.fromOffset(42, 22)
+    track.Position = UDim2.new(1, -50, 0.5, -11)
+    track.BackgroundColor3 = Theme.PanelAlt
+    track.BorderSizePixel = 0
+    track.Parent = row
+    corner(track, 11)
+    stroke(track, Theme.Stroke, 1, 0.4)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.fromOffset(16, 16)
+    knob.Position = UDim2.new(0, 3, 0.5, -8)
+    knob.BackgroundColor3 = Theme.TextPrimary
+    knob.BorderSizePixel = 0
+    knob.Parent = track
+    corner(knob, 8)
+
+    local button = Instance.new("TextButton")
+    button.BackgroundTransparency = 1
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.Text = ""
+    button.Parent = row
+
+    local function render(animated)
+        if state then
+            statusLabel.Text = "ON"
+            statusLabel.TextColor3 = Theme.OnColor
+            local goalPos = UDim2.new(0, 23, 0.5, -8)
+            if animated then tween(knob, {Position = goalPos}, 0.18) tween(track, {BackgroundColor3 = Theme.AccentBlue}, 0.18) else knob.Position = goalPos track.BackgroundColor3 = Theme.AccentBlue end
+        else
+            statusLabel.Text = "OFF"
+            statusLabel.TextColor3 = Theme.OffColor
+            local goalPos = UDim2.new(0, 3, 0.5, -8)
+            if animated then tween(knob, {Position = goalPos}, 0.18) tween(track, {BackgroundColor3 = Theme.PanelAlt}, 0.18) else knob.Position = goalPos track.BackgroundColor3 = Theme.PanelAlt end
+        end
+    end
+    render(false)
+
+    button.MouseButton1Click:Connect(function()
+        state = not state
+        isAutoFarmActive = state
         render(true)
     end)
 end
@@ -699,74 +767,4 @@ do
     end)
 end
 
-addSection("Farming")
-
--- Toggle Auto Farm Coins
-do
-    local state = isAutoFarmActive
-    local row = newRow(44)
-    local label = Instance.new("TextLabel")
-    label.BackgroundTransparency = 1
-    label.Position = UDim2.new(0, 14, 0, 0)
-    label.Size = UDim2.new(1, -110, 1, 0)
-    label.Font = FONT
-    label.Text = "Auto Farm Coins"
-    label.TextColor3 = Theme.TextPrimary
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = row
-
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Position = UDim2.new(1, -96, 0, 0)
-    statusLabel.Size = UDim2.new(0, 40, 1, 0)
-    statusLabel.Font = FONT_BOLD
-    statusLabel.TextSize = 11
-    statusLabel.Parent = row
-
-    local track = Instance.new("Frame")
-    track.Size = UDim2.fromOffset(42, 22)
-    track.Position = UDim2.new(1, -50, 0.5, -11)
-    track.BackgroundColor3 = Theme.PanelAlt
-    track.BorderSizePixel = 0
-    track.Parent = row
-    corner(track, 11)
-    stroke(track, Theme.Stroke, 1, 0.4)
-
-    local knob = Instance.new("Frame")
-    knob.Size = UDim2.fromOffset(16, 16)
-    knob.Position = UDim2.new(0, 3, 0.5, -8)
-    knob.BackgroundColor3 = Theme.TextPrimary
-    knob.BorderSizePixel = 0
-    knob.Parent = track
-    corner(knob, 8)
-
-    local button = Instance.new("TextButton")
-    button.BackgroundTransparency = 1
-    button.Size = UDim2.new(1, 0, 1, 0)
-    button.Text = ""
-    button.Parent = row
-
-    local function render(animated)
-        if state then
-            statusLabel.Text = "ON"
-            statusLabel.TextColor3 = Theme.OnColor
-            local goalPos = UDim2.new(0, 23, 0.5, -8)
-            if animated then tween(knob, {Position = goalPos}, 0.18) tween(track, {BackgroundColor3 = Theme.AccentBlue}, 0.18) else knob.Position = goalPos track.BackgroundColor3 = Theme.AccentBlue end
-        else
-            statusLabel.Text = "OFF"
-            statusLabel.TextColor3 = Theme.OffColor
-            local goalPos = UDim2.new(0, 3, 0.5, -8)
-            if animated then tween(knob, {Position = goalPos}, 0.18) tween(track, {BackgroundColor3 = Theme.PanelAlt}, 0.18) else knob.Position = goalPos track.BackgroundColor3 = Theme.PanelAlt end
-        end
-    end
-    render(false)
-
-    button.MouseButton1Click:Connect(function()
-        state = not state
-        isAutoFarmActive = state
-        render(true)
-    end)
-end
-
-print("✅ Silent Aim v4.4 & Auto Farm Coins cargados con éxito.")
+print("✅ Silent Aim v4.4 & Auto Farm Coins cargados y visibles.")
