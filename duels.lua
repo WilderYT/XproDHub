@@ -17,12 +17,11 @@ local CONFIG = {
     FOV = 180,
     CheckDistance = 300,
     DamageAmount = 100,
-    WallCheck = true, -- Integrated directly into Silent Aim
+    WallCheck = true, -- Integrado y fijo para el Silent Aim
     ESPEnabled = false,
     ESPColor = Color3.fromRGB(255, 0, 0),
     FarmDistance = 600,
-    FarmCooldown = 0.25,
-    AutoStreakEnabled = false
+    FarmCooldown = 0.25
 }
 
 local isSilentAimActive = false
@@ -52,6 +51,7 @@ local function getEnemies()
 end
 
 local function isVisible(targetPart)
+    -- El WallCheck ahora trabaja directamente de la mano con el Silent Aim
     if not CONFIG.WallCheck then return true end
     local myChar = player.Character
     if not myChar or not myChar:FindFirstChild("Head") then return false end
@@ -81,6 +81,7 @@ local function getClosestEnemyWithinFOV()
             if dist <= CONFIG.CheckDistance then
                 local toTarget = (part.Position - cameraPos).Unit
                 local angleDeg = math.deg(math.acos(math.clamp(camera.CFrame.LookVector:Dot(toTarget), -1, 1)))
+                -- Se valida el FOV y el WallCheck fusionados
                 if angleDeg <= CONFIG.FOV and isVisible(part) then
                     if dist < closestDist then
                         closestDist = dist
@@ -113,13 +114,13 @@ local function trySilentShoot()
     lastFired = tick()
     local originPos = tool:FindFirstChild("Handle") and tool.Handle.Position or myChar.Head.Position
     local targetPos = targetPart.Position
-    if CONFIG.WallCheck then
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-        raycastParams.FilterDescendantsInstances = {myChar, camera}
-        local result = workspace:Raycast(originPos, (targetPos - originPos), raycastParams)
-        if result then targetPos = result.Position end
-    end
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {myChar, camera}
+    local result = workspace:Raycast(originPos, (targetPos - originPos), raycastParams)
+    if result then targetPos = result.Position end
+
     pcall(function()
         pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
         if weaponDamageRemote and isVisible(targetPart) then weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount) end
@@ -159,28 +160,6 @@ task.spawn(function()
                         local distancia = (coin.Position - rootPart.Position).Magnitude
                         if distancia < CONFIG.FarmDistance and distancia > 2 then
                             coin.CFrame = rootPart.CFrame - Vector3.new(0, 2, 0)
-                        end
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- Auto Win / Streak Logic (Simulates finishing objectives/defeating remaining enemies quickly to farm match wins)
-task.spawn(function()
-    while task.wait(2) do
-        if CONFIG.AutoStreakEnabled then
-            pcall(function()
-                -- Automatically targets and clears remaining enemies to secure round wins rapidly
-                for _, enemy in ipairs(getEnemies()) do
-                    if enemy.Character and enemy.Character:FindFirstChild("Humanoid") then
-                        local hum = enemy.Character.Humanoid
-                        local root = enemy.Character:FindFirstChild("HumanoidRootPart")
-                        local weaponDamageRemote = replicatedStorage:FindFirstChild("WeaponDamage")
-                        if hum and hum.Health > 0 and root and weaponDamageRemote then
-                            -- Instantly applies finishing damage to secure the match win loop
-                            weaponDamageRemote:FireServer(hum, 500)
                         end
                     end
                 end
@@ -246,7 +225,7 @@ local TabMain = Window:CreateTab("Main", "target")
 local SectionCombat = TabMain:CreateSection("Combat")
 
 local ToggleSilent = TabMain:CreateToggle({
-   Name = "Silent Aim (Includes WallCheck)",
+   Name = "Silent Aim (With Built-in WallCheck)",
    CurrentValue = isSilentAimActive,
    Flag = "SilentAimFlag",
    Callback = function(Value)
@@ -256,16 +235,7 @@ local ToggleSilent = TabMain:CreateToggle({
    end,
 })
 
-local ToggleWall = TabMain:CreateToggle({
-   Name = "Bypass Walls (Raycast)",
-   CurrentValue = CONFIG.WallCheck,
-   Flag = "WallCheckFlag",
-   Callback = function(Value)
-      CONFIG.WallCheck = Value
-   end,
-})
-
-local SectionFarm = TabMain:CreateSection("Farming & Streaks")
+local SectionFarm = TabMain:CreateSection("Farming")
 
 local ToggleFarm = TabMain:CreateToggle({
    Name = "Auto Farm Coins",
@@ -275,17 +245,6 @@ local ToggleFarm = TabMain:CreateToggle({
       isAutoFarmActive = Value
       local msg = Value and "Collecting Coins" or "Stopped"
       Rayfield:Notify({Title = "Auto Farm", Content = msg, Duration = 3})
-   end,
-})
-
-local ToggleStreak = TabMain:CreateToggle({
-   Name = "Auto Win / Farm Streaks",
-   CurrentValue = CONFIG.AutoStreakEnabled,
-   Flag = "AutoStreakFlag",
-   Callback = function(Value)
-      CONFIG.AutoStreakEnabled = Value
-      local msg = Value and "Auto Win Enabled" or "Auto Win Disabled"
-      Rayfield:Notify({Title = "Streak Farm", Content = msg, Duration = 3})
    end,
 })
 
