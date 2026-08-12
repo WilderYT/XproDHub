@@ -1,5 +1,5 @@
 -- ============================================
--- SCRIPT INTEGRADO: Silent Aim Real v4.4 (Anti-Disparos Fantasmas / Tool.Activated Puro)
+-- SCRIPT INTEGRADO: Silent Aim Real v4.4 (Anti-Disparos Fantasmas / Tool.Activated Puro + ESP Corregido)
 -- ============================================
 local player = game.Players.LocalPlayer
 local camera = workspace.CurrentCamera
@@ -192,7 +192,7 @@ player.CharacterAdded:Connect(function(newChar)
 end)
 
 -- ============================================
--- 3) ESP (HIGHLIGHT NATIVO)
+-- 3) ESP (HIGHLIGHT NATIVO - CORREGIDO PARA RONDAS)
 -- ============================================
 local espHighlights = {}
 
@@ -210,9 +210,12 @@ local function updateESP()
     
     for _, plr in ipairs(enemies) do
         local char = plr.Character
-        if char then
+        if char and char:FindFirstChild("HumanoidRootPart") then
             local highlight = espHighlights[plr]
-            if not highlight or not highlight.Parent then
+            -- Si el personaje cambió (nueva ronda / respawn), recreamos el highlight
+            if not highlight or highlight.Parent ~= char then
+                if highlight then highlight:Destroy() end
+                
                 highlight = Instance.new("Highlight")
                 highlight.FillColor = CONFIG.ESPColor
                 highlight.FillTransparency = 0.5
@@ -226,6 +229,7 @@ local function updateESP()
         end
     end
     
+    -- Limpiar jugadores que salieron o murieron
     for plr, highlight in pairs(espHighlights) do
         if not currentHighlights[plr] then
             if highlight then highlight:Destroy() end
@@ -662,4 +666,4 @@ do
     end)
 end
 
-print("✅ Silent Aim v4.4 cargado: Conectado exclusivamente a Tool.Activated (Anti-disparos fantasmas).")
+print("✅ Silent Aim v4.4 cargado con éxito (ESP actualizado para rondas).")
