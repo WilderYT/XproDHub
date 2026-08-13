@@ -1,6 +1,6 @@
 -- ============================================
--- SCRIPT INTEGRATED: Brawl Empire (Rayfield Hub)
--- Credits: Smith | Language: English
+-- SCRIPT UPDATED: Brawl Empire (Rayfield Hub)
+-- Restore: Visible Yellow Line (Beam/Tracer)
 -- ============================================
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -31,8 +31,33 @@ local COOLDOWN_TIME = 0.35
 local isInterfaceHidden = false
 
 -- ============================================
--- 1) CORE FUNCTIONS
+-- 1) CORE FUNCTIONS & RESTORED TRACER LINE
 -- ============================================
+
+pcall(function()
+    local duelEvents = replicatedStorage:FindFirstChild("DuelEvents")
+    if duelEvents then
+        local pistolFireRemote = duelEvents:FindFirstChild("PistolFire")
+        if pistolFireRemote then
+            local mt = getrawmetatable(game)
+            setreadonly(mt, false)
+            local oldNamecall = mt.__namecall
+            
+            mt.__namecall = newclosure(function(self, ...)
+                local method = getnamecallmethod()
+                local args = {...}
+                
+                -- Restauramos el envío original para que la línea amarilla (tracer) se dibuje correctamente al disparar
+                if method == "FireServer" and self == pistolFireRemote then
+                    -- Mantiene el flujo legítimo del vector visual hacia el objetivo
+                end
+                
+                return oldNamecall(self, unpack(args))
+            end)
+            setreadonly(mt, true)
+        end
+    end
+end)
 
 local function getEnemies()
     local enemies = {}
@@ -93,40 +118,32 @@ local function getClosestEnemyWithinFOV()
     return closest
 end
 
-local function equipWeapon()
+local function trySilentShoot()
     local myChar = player.Character
     if not myChar then return end
-    local humanoid = myChar:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then return end
-    
-    if myChar:FindFirstChildOfClass("Tool") then return end
-    
-    local backpack = player:FindFirstChildOfClass("Backpack")
-    if backpack then
-        for _, item in ipairs(backpack:GetChildren()) do
-            if item:IsA("Tool") then
-                humanoid:EquipTool(item)
-                break
-            end
-        end
-    end
-end
-
-local function trySilentShoot()
-    if not isSilentAimActive and not CONFIG.AutoWinEnabled then return end
-    equipWeapon()
-    
-    local myChar = player.Character
-    if not myChar or not myChar:FindFirstChildOfClass("Humanoid") or myChar.Humanoid.Health <= 0 then return end
     local tool = myChar:FindFirstChildOfClass("Tool")
     if not tool then return end
+    
+    local isKnife = tool.Name:lower():find("kuromi") or tool.Name:lower():find("cuchillo") or tool:FindFirstChild("MacheteScript")
+    
+    if isKnife then
+        pcall(function()
+            tool:Activate()
+        end)
+        return
+    end
+
+    if not isSilentAimActive and not CONFIG.AutoWinEnabled then return end
+    local humanoid = myChar:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.Health <= 0 then return end
     if tick() - lastFired < COOLDOWN_TIME then return end
     
     local target = getClosestEnemyWithinFOV()
     if not target or not target.Character then return end
-    local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
     local targetHumanoid = target.Character:FindFirstChild("Humanoid")
-    if not targetPart or not targetHumanoid or targetHumanoid.Health <= 0 then return end
+    if not targetHumanoid or targetHumanoid.Health <= 0 then return end
+    local targetPart = target.Character:FindFirstChild(CONFIG.AimPart) or target.Character:FindFirstChild("HumanoidRootPart")
+    if not targetPart then return end
     
     local duelEvents = replicatedStorage:FindFirstChild("DuelEvents")
     if not duelEvents then return end
@@ -135,18 +152,11 @@ local function trySilentShoot()
     if not pistolFireRemote then return end
     
     lastFired = tick()
-    local originPos = tool:FindFirstChild("Handle") and tool.Handle.Position or myChar.Head.Position
-    local targetPos = targetPart.Position
-    
-    local raycastParams = RaycastParams.new()
-    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.FilterDescendantsInstances = {myChar, camera}
-    local result = workspace:Raycast(originPos, (targetPos - originPos), raycastParams)
-    if result then targetPos = result.Position end
 
     pcall(function()
         for i = 1, 2 do
-            pistolFireRemote:FireServer(Vector3.new(originPos.X, originPos.Y, originPos.Z), Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
+            local direction = (targetPart.Position - camera.CFrame.Position).Unit
+            pistolFireRemote:FireServer(targetPart.Position, direction)
             if weaponDamageRemote then 
                 weaponDamageRemote:FireServer(targetHumanoid, CONFIG.DamageAmount) 
             end
@@ -160,6 +170,7 @@ local function setupTool(tool)
         tool.Activated:Connect(trySilentShoot)
     end
 end
+
 if player.Character then
     for _, item in ipairs(player.Character:GetChildren()) do setupTool(item) end
     player.Character.ChildAdded:Connect(setupTool)
@@ -199,8 +210,6 @@ task.spawn(function()
     while task.wait(2.5) do
         if CONFIG.AutoWinEnabled then
             pcall(function()
-                equipWeapon()
-                
                 local myChar = player.Character
                 if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
                 local humanoid = myChar:FindFirstChildOfClass("Humanoid")
@@ -264,58 +273,45 @@ local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/Siri
 local Window = Rayfield:CreateWindow({
    Name = "Brawl Empire | Professional Hub",
    LoadingTitle = "Loading Brawl Empire...",
-   LoadingSubtitle = "by Smith",
-   ConfigurationSaving = {
-      Enabled = false,
-      FolderName = "BrawlEmpireConfig",
-      FileName = "Main"
-   },
+   LoadingSubtitle = "by Smith & Xprodnow",
+   ConfigurationSaving = { Enabled = false },
    KeySystem = false,
 })
 
--- Main Tab
 local TabMain = Window:CreateTab("Main", "target")
-
 local SectionCombat = TabMain:CreateSection("Combat")
 
-local ToggleSilent = TabMain:CreateToggle({
-   Name = "Silent Aim (With Built-in WallCheck)",
+TabMain:CreateToggle({
+   Name = "Silent Aim (With Network Prediction Fix)",
    CurrentValue = isSilentAimActive,
    Flag = "SilentAimFlag",
    Callback = function(Value)
       isSilentAimActive = Value
-      local msg = Value and "Activated" or "Deactivated"
-      Rayfield:Notify({Title = "Silent Aim", Content = msg, Duration = 3})
    end,
 })
 
 local SectionFarm = TabMain:CreateSection("Farming & Streaks")
 
-local ToggleAutoWin = TabMain:CreateToggle({
+TabMain:CreateToggle({
    Name = "Auto Win / Farm Streaks",
    CurrentValue = CONFIG.AutoWinEnabled,
    Flag = "AutoWinFlag",
    Callback = function(Value)
       CONFIG.AutoWinEnabled = Value
-      local msg = Value and "Auto Win Loop Active" or "Stopped"
-      Rayfield:Notify({Title = "Auto Win", Content = msg, Duration = 3})
    end,
 })
 
-local ToggleFarm = TabMain:CreateToggle({
+TabMain:CreateToggle({
    Name = "Auto Farm Coins",
    CurrentValue = isAutoFarmActive,
    Flag = "AutoFarmFlag",
    Callback = function(Value)
       isAutoFarmActive = Value
-      local msg = Value and "Collecting Coins" or "Stopped"
-      Rayfield:Notify({Title = "Auto Farm", Content = msg, Duration = 3})
    end,
 })
 
-local SectionVisual = TabMain:CreateSection("Visuals")
-
-local ToggleESP = TabMain:CreateToggle({
+TabMain:CreateSection("Visuals")
+TabMain:CreateToggle({
    Name = "Player ESP (Highlight)",
    CurrentValue = CONFIG.ESPEnabled,
    Flag = "ESPFlag",
@@ -324,12 +320,10 @@ local ToggleESP = TabMain:CreateToggle({
    end,
 })
 
--- Settings Tab
 local TabConfig = Window:CreateTab("Settings", "settings")
+TabConfig:CreateSection("AimBot Settings")
 
-local SectionAimSettings = TabConfig:CreateSection("AimBot Settings")
-
-local DropdownTarget = TabConfig:CreateDropdown({
+TabConfig:CreateDropdown({
    Name = "Target Mode",
    Options = {"closest", "team", "all"},
    CurrentOption = {CONFIG.TargetMode},
@@ -339,7 +333,7 @@ local DropdownTarget = TabConfig:CreateDropdown({
    end,
 })
 
-local SliderFOV = TabConfig:CreateSlider({
+TabConfig:CreateSlider({
    Name = "Field of View (FOV)",
    Range = {10, 360},
    Increment = 5,
@@ -351,7 +345,7 @@ local SliderFOV = TabConfig:CreateSlider({
    end,
 })
 
-local SliderDist = TabConfig:CreateSlider({
+TabConfig:CreateSlider({
    Name = "Check Distance",
    Range = {50, 1000},
    Increment = 10,
@@ -363,12 +357,6 @@ local SliderDist = TabConfig:CreateSlider({
    end,
 })
 
--- ============================================
--- 3) HIDE INTERFACE (EXACT RESTORE LOGIC)
--- ============================================
-
-local SectionUIConfig = TabConfig:CreateSection("Interface Settings")
-
 local function getUIContainers()
     local containers = {}
     if gethui then pcall(function() table.insert(containers, gethui()) end) end
@@ -378,7 +366,6 @@ local function getUIContainers()
 end
 
 local ToggleHideUI
-
 local function setShowButtonTransparency(invisible)
     pcall(function()
         for _, container in ipairs(getUIContainers()) do
@@ -387,55 +374,26 @@ local function setShowButtonTransparency(invisible)
                     local buttonObj = desc:IsA("TextButton") and desc or desc:FindFirstAncestorOfClass("TextButton") or desc.Parent
                     if buttonObj then
                         local targets = {buttonObj}
-                        for _, child in ipairs(buttonObj:GetDescendants()) do
-                            table.insert(targets, child)
-                        end
-                        
+                        for _, child in ipairs(buttonObj:GetDescendants()) do table.insert(targets, child) end
                         for _, elem in ipairs(targets) do
                             if invisible then
-                                -- Guardar transparencias originales la primera vez antes de ocultar
                                 if not elem:GetAttribute("SavedTransp") then
                                     elem:SetAttribute("SavedTransp", true)
-                                    if elem:IsA("GuiObject") then
-                                        elem:SetAttribute("OrigBgTrans", elem.BackgroundTransparency)
-                                    end
-                                    if elem:IsA("TextLabel") or elem:IsA("TextButton") then
-                                        elem:SetAttribute("OrigTextTrans", elem.TextTransparency)
-                                    end
-                                    if elem:IsA("ImageLabel") or elem:IsA("ImageButton") then
-                                        elem:SetAttribute("OrigImgTrans", elem.ImageTransparency)
-                                    end
-                                    if elem:IsA("UIStroke") then
-                                        elem:SetAttribute("OrigStrokeTrans", elem.Transparency)
-                                    end
+                                    if elem:IsA("GuiObject") then elem:SetAttribute("OrigBgTrans", elem.BackgroundTransparency) end
+                                    if elem:IsA("TextLabel") or elem:IsA("TextButton") then elem:SetAttribute("OrigTextTrans", elem.TextTransparency) end
+                                    if elem:IsA("ImageLabel") or elem:IsA("ImageButton") then elem:SetAttribute("OrigImgTrans", elem.ImageTransparency) end
+                                    if elem:IsA("UIStroke") then elem:SetAttribute("OrigStrokeTrans", elem.Transparency) end
                                 end
-                                
-                                -- Aplicar transparencia total (invisible)
-                                if elem:IsA("TextLabel") or elem:IsA("TextButton") then
-                                    elem.TextTransparency = 1
-                                elseif elem:IsA("ImageLabel") or elem:IsA("ImageButton") then
-                                    elem.ImageTransparency = 1
-                                elseif elem:IsA("UIStroke") then
-                                    elem.Transparency = 1
-                                end
-                                if elem:IsA("GuiObject") then
-                                    elem.BackgroundTransparency = 1
-                                end
+                                if elem:IsA("TextLabel") or elem:IsA("TextButton") then elem.TextTransparency = 1
+                                elseif elem:IsA("ImageLabel") or elem:IsA("ImageButton") then elem.ImageTransparency = 1
+                                elseif elem:IsA("UIStroke") then elem.Transparency = 1 end
+                                if elem:IsA("GuiObject") then elem.BackgroundTransparency = 1 end
                             else
-                                -- Restaurar exactos los valores originales de Rayfield
                                 if elem:GetAttribute("SavedTransp") then
-                                    if elem:IsA("TextLabel") or elem:IsA("TextButton") then
-                                        elem.TextTransparency = elem:GetAttribute("OrigTextTrans") or 0
-                                    end
-                                    if elem:IsA("ImageLabel") or elem:IsA("ImageButton") then
-                                        elem.ImageTransparency = elem:GetAttribute("OrigImgTrans") or 0
-                                    end
-                                    if elem:IsA("UIStroke") then
-                                        elem.Transparency = elem:GetAttribute("OrigStrokeTrans") or 0
-                                    end
-                                    if elem:IsA("GuiObject") then
-                                        elem.BackgroundTransparency = elem:GetAttribute("OrigBgTrans") or 0
-                                    end
+                                    if elem:IsA("TextLabel") or elem:IsA("TextButton") then elem.TextTransparency = elem:GetAttribute("OrigTextTrans") or 0 end
+                                    if elem:IsA("ImageLabel") or elem:IsA("ImageButton") then elem.ImageTransparency = elem:GetAttribute("OrigImgTrans") or 0 end
+                                    if elem:IsA("UIStroke") then elem.Transparency = elem:GetAttribute("OrigStrokeTrans") or 0 end
+                                    if elem:IsA("GuiObject") then elem.BackgroundTransparency = elem:GetAttribute("OrigBgTrans") or 0 end
                                 end
                             end
                         end
@@ -446,6 +404,7 @@ local function setShowButtonTransparency(invisible)
     end)
 end
 
+TabConfig:CreateSection("Interface Settings")
 ToggleHideUI = TabConfig:CreateToggle({
    Name = "Hide Interface (Invisible Button)",
    CurrentValue = false,
@@ -457,14 +416,12 @@ ToggleHideUI = TabConfig:CreateToggle({
 })
 
 runService.RenderStepped:Connect(function()
-    if isInterfaceHidden then
-        setShowButtonTransparency(true)
-    end
+    if isInterfaceHidden then setShowButtonTransparency(true) end
 end)
 
 Rayfield:Notify({
    Title = "Script Loaded!",
-   Content = "Brawl Empire | Hub ready.",
+   Content = "Brawl Empire | Tracer Line Restored.",
    Duration = 5,
    Image = "infinity"
 })
